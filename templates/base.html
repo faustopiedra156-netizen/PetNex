@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#f8f9ff]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PetCare Loja - Cuidado Profesional Canino{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#00685f',
+                            900: '#134e4a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        headline: ['Montserrat', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .font-headline { font-family: 'Montserrat', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .soft-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 104, 95, 0.08), 0 8px 10px -6px rgba(0, 104, 95, 0.04);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-800 antialiased bg-[#f8f9ff]">
+
+    <!-- Navigation Header -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-teal-100/60 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo -->
+                <a href="{% url 'home' %}" class="flex items-center gap-3 group">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#00685f] to-teal-500 flex items-center justify-center text-white shadow-md shadow-teal-700/20 group-hover:scale-105 transition">
+                        <span class="material-symbols-outlined text-2xl">pets</span>
+                    </div>
+                    <div>
+                        <span class="font-headline font-extrabold text-xl tracking-tight text-[#00685f] block leading-none">PetCare</span>
+                        <span class="text-xs font-semibold tracking-widest text-teal-600 uppercase">Loja • Ecuador</span>
+                    </div>
+                </a>
+
+                <!-- Desktop Navigation Links -->
+                <nav class="hidden md:flex items-center gap-1 font-medium text-slate-600 text-sm">
+                    <a href="{% url 'home' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Inicio</a>
+                    <a href="{% url 'servicios' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Servicios</a>
+                    <a href="{% url 'contacto' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Contacto</a>
+                    <a href="{% url 'agendar_cita' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Agendar Cita</a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'perfil_cliente' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Mi Perfil</a>
+                        <a href="{% url 'mis_citas' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Mis Citas</a>
+                        <a href="{% url 'mis_mascotas' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Mis Mascotas</a>
+                        {% if user.is_staff or user.is_superuser %}
+                            <a href="{% url 'gestion_admin' %}" class="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 font-semibold border border-amber-200 text-xs flex items-center gap-1 hover:bg-amber-100 transition">
+                                <span class="material-symbols-outlined text-sm">dashboard</span> Panel Admin
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </nav>
+
+                <!-- Auth / User Actions -->
+                <div class="flex items-center gap-3">
+                    {% if user.is_authenticated %}
+                        <div class="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-teal-50 border border-teal-100 text-slate-700 text-xs font-semibold">
+                            <span class="w-7 h-7 rounded-full bg-[#00685f] text-white flex items-center justify-center font-bold text-xs uppercase">
+                                {{ user.first_name|default:user.username|slice:":1" }}
+                            </span>
+                            <span>{{ user.first_name|default:user.username }}</span>
+                        </div>
+                        <a href="{% url 'logout' %}" class="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition" title="Cerrar Sesión">
+                            <span class="material-symbols-outlined text-xl">logout</span>
+                        </a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="px-4 py-2 rounded-xl text-sm font-semibold text-[#00685f] hover:bg-teal-50 transition">Iniciar Sesión</a>
+                        <a href="{% url 'registro' %}" class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#00685f] hover:bg-teal-800 shadow-sm transition">Registrarse</a>
+                    {% endif %}
+
+                    <!-- Mobile Menu Button -->
+                    <button id="mobileMenuBtn" class="md:hidden p-2 text-slate-600 hover:text-[#00685f] rounded-xl focus:outline-none">
+                        <span class="material-symbols-outlined text-2xl">menu</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Menu -->
+        <div id="mobileMenu" class="hidden md:hidden border-t border-teal-100 bg-white px-4 pt-3 pb-6 space-y-2">
+            <a href="{% url 'home' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Inicio</a>
+            <a href="{% url 'servicios' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Servicios</a>
+            <a href="{% url 'contacto' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Contacto</a>
+            <a href="{% url 'agendar_cita' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Agendar Cita</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'perfil_cliente' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Mi Perfil</a>
+                <a href="{% url 'mis_citas' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Mis Citas</a>
+                <a href="{% url 'mis_mascotas' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Mis Mascotas</a>
+                {% if user.is_staff %}
+                    <a href="{% url 'gestion_admin' %}" class="block px-3 py-2 rounded-xl font-semibold text-amber-800 bg-amber-50">Panel Administración</a>
+                {% endif %}
+                <a href="{% url 'logout' %}" class="block px-3 py-2 rounded-xl font-medium text-red-600 hover:bg-red-50">Cerrar Sesión</a>
+            {% else %}
+                <div class="pt-2 flex flex-col gap-2">
+                    <a href="{% url 'login' %}" class="w-full text-center py-2.5 rounded-xl border border-teal-200 text-[#00685f] font-semibold">Iniciar Sesión</a>
+                    <a href="{% url 'registro' %}" class="w-full text-center py-2.5 rounded-xl bg-[#00685f] text-white font-semibold">Registrarse</a>
+                </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Messages Container -->
+    {% if messages %}
+        <div class="max-w-4xl mx-auto px-4 mt-4 w-full">
+            {% for message in messages %}
+                <div class="p-4 mb-3 rounded-2xl flex items-start gap-3 shadow-sm border text-sm font-medium transition-all {% if message.tags == 'error' %}bg-red-50 text-red-800 border-red-200{% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border-amber-200{% elif message.tags == 'info' %}bg-sky-50 text-sky-800 border-sky-200{% else %}bg-emerald-50 text-emerald-800 border-emerald-200{% endif %}">
+                    <span class="material-symbols-outlined text-xl shrink-0">
+                        {% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}check_circle{% endif %}
+                    </span>
+                    <div class="flex-1">{{ message }}</div>
+                    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600">
+                        <span class="material-symbols-outlined text-base">close</span>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="flex-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-300 pt-12 pb-8 mt-16 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <!-- Col 1 -->
+                <div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-xl bg-[#00685f] flex items-center justify-center text-white font-bold">
+                            <span class="material-symbols-outlined text-2xl">pets</span>
+                        </div>
+                        <span class="font-headline font-bold text-xl text-white">PetCare Loja</span>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                        Centro especializado en estética, peluquería y spa canino profesional. Cuidamos a tu mejor amigo con amor y el máximo estándar de higiene en Loja.
+                    </p>
+                    <div class="flex gap-3">
+                        <span class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-teal-400 text-sm">📍</span>
+                        <span class="text-xs text-slate-400">Av. Universitaria, Loja, Ecuador</span>
+                    </div>
+                </div>
+
+                <!-- Col 2 -->
+                <div>
+                    <h4 class="font-headline font-semibold text-white mb-4 text-sm uppercase tracking-wider">Enlaces Rápidos</h4>
+                    <ul class="space-y-2 text-sm text-slate-400">
+                        <li><a href="{% url 'home' %}" class="hover:text-teal-400 transition">Inicio</a></li>
+                        <li><a href="{% url 'servicios' %}" class="hover:text-teal-400 transition">Catálogo de Servicios</a></li>
+                        <li><a href="{% url 'agendar_cita' %}" class="hover:text-teal-400 transition">Reservar Cita</a></li>
+                        <li><a href="{% url 'mis_citas' %}" class="hover:text-teal-400 transition">Consultar mis Citas</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 3 -->
+                <div>
+                    <h4 class="font-headline font-semibold text-white mb-4 text-sm uppercase tracking-wider">Servicios Populares</h4>
+                    <ul class="space-y-2 text-sm text-slate-400">
+                        <li>Corte de Raza & Estilo</li>
+                        <li>Baño & Spa Canino Pro</li>
+                        <li>Peluquería Integral Completa</li>
+                        <li>Tratamiento Deslanado Profundo</li>
+                    </ul>
+                </div>
+
+                <!-- Col 4 -->
+                <div>
+                    <h4 class="font-headline font-semibold text-white mb-4 text-sm uppercase tracking-wider">Atención al Cliente</h4>
+                    <div class="space-y-3 text-sm text-slate-400">
+                        <p class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-teal-400 text-base">schedule</span>
+                            <span>Lun - Sáb: 08:30 - 18:30</span>
+                        </p>
+                        <p class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-teal-400 text-base">call</span>
+                            <span>+593 98 3298707</span>
+                        </p>
+                        <p class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-teal-400 text-base">mail</span>
+                            <span>Petcare@gmail.com</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
+                <p>© 2026 PetCare Loja  Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+            document.getElementById('mobileMenu').classList.toggle('hidden');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}PetCare Loja - Cuidado Profesional Canino en Loja{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative overflow-hidden bg-gradient-to-br from-teal-900 via-[#00685f] to-teal-800 text-white py-20 lg:py-28">
+    <!-- Decorative Ambient Glows -->
+    <div class="absolute top-0 right-0 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl -ml-20 -mb-20"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="space-y-6 text-center lg:text-left">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-teal-200 text-xs font-semibold uppercase tracking-wider">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Peluquería Canina #1 en Loja, Ecuador</span>
+                </div>
+
+                <h1 class="font-headline font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight text-white leading-tight">
+                    Baño, corte y cariño para <span class="text-teal-300">tu mascota</span>.
+                </h1>
+
+                <p class="text-teal-100 text-base sm:text-lg max-w-xl mx-auto lg:mx-0 font-normal leading-relaxed">
+                    Ofrecemos cortes de raza, baños relajantes con aromaterapia, deslanados y pedicura higiénica con el mayor cariño y paciencia en Loja.
+                </p>
+
+                <div class="pt-2 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{% url 'agendar_cita' %}" class="px-8 py-4 rounded-2xl bg-white text-[#00685f] font-headline font-bold text-base hover:bg-teal-50 shadow-xl shadow-teal-950/20 transition flex items-center justify-center gap-2 group">
+                        <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition">calendar_month</span>
+                        <span>Agendar Cita Ahora</span>
+                    </a>
+                    <a href="{% url 'servicios' %}" class="px-8 py-4 rounded-2xl bg-teal-800/60 border border-teal-400/30 text-white font-headline font-semibold text-base hover:bg-teal-800 transition flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-2xl">format_list_bulleted</span>
+                        <span>Ver Catálogo</span>
+                    </a>
+                </div>
+
+                <!-- Feature Pills -->
+                <div class="pt-6 grid grid-cols-3 gap-4 border-t border-teal-700/50 text-center lg:text-left">
+                    <div>
+                        <span class="block font-headline font-extrabold text-2xl text-white">+1,200</span>
+                        <span class="text-xs text-teal-200">Mascotas Atendidas</span>
+                    </div>
+                    <div>
+                        <span class="block font-headline font-extrabold text-2xl text-white">100%</span>
+                        <span class="text-xs text-teal-200">Atención Paciente</span>
+                    </div>
+                    <div>
+                        <span class="block font-headline font-extrabold text-2xl text-white">4.9 ★</span>
+                        <span class="text-xs text-teal-200">Reseñas en Loja</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Image Banner -->
+            <div class="relative">
+                <div class="relative mx-auto max-w-md lg:max-w-none rounded-3xl overflow-hidden shadow-2xl shadow-teal-950/40 border-4 border-white/20">
+                    <img src="https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=800&q=80" alt="Peluquería Canina PetCare Loja" class="w-full h-96 lg:h-[480px] object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
+                        <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl w-full flex items-center justify-between border border-white">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-[#00685f] text-white flex items-center justify-center font-bold">
+                                    <span class="material-symbols-outlined text-xl">verified</span>
+                                </div>
+                                <div>
+                                    <p class="font-headline font-bold text-slate-800 text-sm">Groomers Certificados</p>
+                                    <p class="text-xs text-slate-500">Técnicas sin estrés ni anestésicos</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-emerald-100 text-emerald-800 font-semibold text-xs rounded-full">Loja Centro</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Services Section -->
+<section class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto mb-12">
+        <span class="text-xs font-bold text-[#00685f] uppercase tracking-widest bg-teal-50 px-3 py-1 rounded-full border border-teal-100">Servicios Destacados</span>
+        <h2 class="font-headline font-extrabold text-3xl sm:text-4xl text-slate-900 mt-2">Atención Integral para el Bienestar de tu Peludo</h2>
+        <p class="text-slate-600 mt-3 text-sm">Selecciona el tratamiento ideal o consulta nuestro catálogo completo de estética canina.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {% for servicio in servicios_destacados %}
+            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center font-bold group-hover:bg-[#00685f] group-hover:text-white transition">
+                            <span class="material-symbols-outlined text-2xl">{{ servicio.icono }}</span>
+                        </div>
+                        <span class="font-headline font-extrabold text-2xl text-[#00685f]">${{ servicio.precio }}</span>
+                    </div>
+
+                    <h3 class="font-headline font-bold text-xl text-slate-900 mb-2">{{ servicio.nombre }}</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-3">{{ servicio.descripcion }}</p>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-500 font-medium flex items-center gap-1">
+                        <span class="material-symbols-outlined text-base text-slate-400">schedule</span>
+                        {{ servicio.duracion_minutos }} min aprox.
+                    </span>
+                    <a href="{% url 'agendar_cita' %}?servicio_id={{ servicio.id }}" class="px-4 py-2 rounded-xl bg-teal-50 hover:bg-[#00685f] text-[#00685f] hover:text-white font-semibold text-xs transition flex items-center gap-1">
+                        <span>Agendar</span>
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-10 text-center">
+        <a href="{% url 'servicios' %}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:border-[#00685f] hover:text-[#00685f] transition">
+            <span>Ver Todos los Servicios (Catálogo)</span>
+            <span class="material-symbols-outlined text-base">east</span>
+        </a>
+    </div>
+</section>
+
+<!-- Why Choose Us Section -->
+<section class="py-16 bg-white border-y border-slate-200/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="p-8 rounded-3xl bg-teal-50/60 border border-teal-100/80">
+                <div class="w-12 h-12 rounded-2xl bg-[#00685f] text-white flex items-center justify-center mb-5">
+                    <span class="material-symbols-outlined text-2xl">sanitizer</span>
+                </div>
+                <h3 class="font-headline font-bold text-xl text-slate-900 mb-2">Productos Hipoalergénicos</h3>
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    Utilizamos cosmética canina de primera línea, formulada especialmente para cuidar el pH de la piel sensible de tu mascota.
+                </p>
+            </div>
+
+            <div class="p-8 rounded-3xl bg-teal-50/60 border border-teal-100/80">
+                <div class="w-12 h-12 rounded-2xl bg-[#00685f] text-white flex items-center justify-center mb-5">
+                    <span class="material-symbols-outlined text-2xl">spa</span>
+                </div>
+                <h3 class="font-headline font-bold text-xl text-slate-900 mb-2">Ambiente Calmado & Secado</h3>
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    Instalaciones diseñadas para minimizar ruidos, con secadores de temperatura controlada y atención individual sin estrés.
+                </p>
+            </div>
+
+            <div class="p-8 rounded-3xl bg-teal-50/60 border border-teal-100/80">
+                <div class="w-12 h-12 rounded-2xl bg-[#00685f] text-white flex items-center justify-center mb-5">
+                    <span class="material-symbols-outlined text-2xl">event_available</span>
+                </div>
+                <h3 class="font-headline font-bold text-xl text-slate-900 mb-2">Reserva Fácil Online</h3>
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    Agenda la cita desde tu teléfono o computadora en segundos. Revisa el historial de cortes y servicios de tu peludo cuando quieras.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action Banner -->
+<section class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="relative rounded-3xl bg-gradient-to-r from-[#00685f] to-teal-700 text-white p-8 sm:p-12 overflow-hidden shadow-xl">
+        <div class="relative z-10 max-w-2xl">
+            <h2 class="font-headline font-extrabold text-3xl sm:text-4xl leading-tight mb-4">¿Listo para consentir a tu mejor amigo en Loja?</h2>
+            <p class="text-teal-100 text-base mb-6">
+                Regístrate gratis, agrega la ficha de tus mascotas y programa su sesión de belleza en el horario que más te convenga.
+            </p>
+            <div class="flex flex-wrap gap-4">
+                <a href="{% url 'agendar_cita' %}" class="px-6 py-3.5 rounded-xl bg-white text-[#00685f] font-headline font-bold text-sm hover:bg-teal-50 transition shadow-md">
+                    Agendar Cita de Peluquería
+                </a>
+                <a href="{% url 'registro' %}" class="px-6 py-3.5 rounded-xl border border-teal-300 text-white font-semibold text-sm hover:bg-white/10 transition">
+                    Crear Cuenta de Dueño
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

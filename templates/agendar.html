@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Agendar Cita - PetCare Loja{% endblock %}
+
+{% block content %}
+<div class="py-12 max-w-3xl mx-auto px-4 sm:px-6">
+    <div class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/80 shadow-xl">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center font-bold">
+                <span class="material-symbols-outlined text-2xl">event_available</span>
+            </div>
+            <div>
+                <h1 class="font-headline font-black text-2xl sm:text-3xl text-slate-900">Agendar Cita de Peluquería</h1>
+                <p class="text-slate-500 text-sm">Selecciona tu mascota, el servicio deseado y el horario que prefieras en Loja.</p>
+            </div>
+        </div>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <div>
+                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2 flex items-center justify-between">
+                    <span>1. Selecciona tu Mascota</span>
+                    <a href="{% url 'nueva_mascota' %}?next=agendar" class="text-xs text-[#00685f] font-semibold hover:underline flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">add_circle</span>
+                        + Registrar nueva mascota
+                    </a>
+                </label>
+                {{ form.mascota }}
+                {% if form.mascota.errors %}
+                    <p class="text-red-600 text-xs mt-1">{{ form.mascota.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
+                    2. Servicio Solicitado
+                </label>
+                {{ form.servicio }}
+                {% if form.servicio.errors %}
+                    <p class="text-red-600 text-xs mt-1">{{ form.servicio.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
+                        3. Fecha de Atención
+                    </label>
+                    {{ form.fecha }}
+                    {% if form.fecha.errors %}
+                        <p class="text-red-600 text-xs mt-1">{{ form.fecha.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
+                        4. Hora Preferida
+                    </label>
+                    {{ form.hora }}
+                    {% if form.hora.errors %}
+                        <p class="text-red-600 text-xs mt-1">{{ form.hora.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
+                    5. Observaciones o Notas Adicionales
+                </label>
+                {{ form.notas }}
+                <p class="text-xs text-slate-400 mt-1">Indica alergias, cortes específicos o detalles importantes para el groomer.</p>
+            </div>
+
+            <div class="pt-4 flex gap-4">
+                <button type="submit" class="w-full py-3.5 px-6 rounded-2xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold text-base shadow-md transition flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-xl">check_circle</span>
+                    <span>Confirmar Cita</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

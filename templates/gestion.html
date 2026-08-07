@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}Panel de Gestión Administrador - PetCare Loja{% endblock %}
+
+{% block content %}
+<div class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-xs mb-2">
+                <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
+                Modo Administrador
+            </div>
+            <h1 class="font-headline font-black text-3xl text-slate-900">Panel de Control & Gestión de Citas</h1>
+            <p class="text-slate-500 text-sm">Administra reservas, estados de atención y catálogo de servicios de PetCare Loja.</p>
+        </div>
+        <a href="/admin/" target="_blank" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">settings</span>
+            <span>Django Admin Nativo</span>
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-semibold text-slate-400 block mb-1">Total Citas</span>
+            <span class="font-headline font-black text-3xl text-slate-900">{{ total_citas }}</span>
+        </div>
+        <div class="bg-amber-50/60 p-5 rounded-2xl border border-amber-200/80 shadow-sm">
+            <span class="text-xs font-bold text-amber-800 block mb-1">Pendientes por Confirmar</span>
+            <span class="font-headline font-black text-3xl text-amber-900">{{ pendientes }}</span>
+        </div>
+        <div class="bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200/80 shadow-sm">
+            <span class="text-xs font-bold text-emerald-800 block mb-1">Confirmadas</span>
+            <span class="font-headline font-black text-3xl text-emerald-900">{{ confirmadas }}</span>
+        </div>
+        <div class="bg-teal-50/60 p-5 rounded-2xl border border-teal-200/80 shadow-sm">
+            <span class="text-xs font-bold text-[#00685f] block mb-1">Ingresos Estimados Atendidos</span>
+            <span class="font-headline font-black text-3xl text-[#00685f]">${{ ingresos }}</span>
+        </div>
+    </div>
+
+    <!-- Appointment Filter Tabs -->
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mb-10">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <h2 class="font-headline font-bold text-xl text-slate-900 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#00685f]">format_list_bulleted</span>
+                Listado General de Citas
+            </h2>
+
+            <div class="flex flex-wrap gap-2 text-xs font-semibold">
+                <a href="{% url 'gestion_admin' %}?estado=TODOS" class="px-3.5 py-2 rounded-xl transition {% if estado_filtro == 'TODOS' %}bg-[#00685f] text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                    Todas
+                </a>
+                <a href="{% url 'gestion_admin' %}?estado=PENDIENTE" class="px-3.5 py-2 rounded-xl transition {% if estado_filtro == 'PENDIENTE' %}bg-amber-600 text-white{% else %}bg-amber-50 text-amber-800 hover:bg-amber-100{% endif %}">
+                    Pendientes
+                </a>
+                <a href="{% url 'gestion_admin' %}?estado=CONFIRMADA" class="px-3.5 py-2 rounded-xl transition {% if estado_filtro == 'CONFIRMADA' %}bg-emerald-600 text-white{% else %}bg-emerald-50 text-emerald-800 hover:bg-emerald-100{% endif %}">
+                    Confirmadas
+                </a>
+                <a href="{% url 'gestion_admin' %}?estado=ATENDIDA" class="px-3.5 py-2 rounded-xl transition {% if estado_filtro == 'ATENDIDA' %}bg-sky-600 text-white{% else %}bg-sky-50 text-sky-800 hover:bg-sky-100{% endif %}">
+                    Atendidas
+                </a>
+                <a href="{% url 'gestion_admin' %}?estado=CANCELADA" class="px-3.5 py-2 rounded-xl transition {% if estado_filtro == 'CANCELADA' %}bg-slate-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                    Canceladas
+                </a>
+            </div>
+        </div>
+
+        {% if citas %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-slate-400 font-semibold text-xs uppercase tracking-wider">
+                            <th class="pb-3 px-2">Cita #</th>
+                            <th class="pb-3 px-2">Mascota & Dueño</th>
+                            <th class="pb-3 px-2">Servicio</th>
+                            <th class="pb-3 px-2">Fecha y Hora</th>
+                            <th class="pb-3 px-2">Estado</th>
+                            <th class="pb-3 px-2">Pago</th>
+                            <th class="pb-3 px-2">Seguimiento</th>
+                            <th class="pb-3 px-2 text-right">Acciones de Control</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        {% for cita in citas %}
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="py-4 px-2 font-mono font-bold text-slate-400">#{{ cita.id }}</td>
+                                <td class="py-4 px-2">
+                                    <div class="font-bold text-slate-900">{{ cita.mascota.nombre }}</div>
+                                    <div class="text-xs text-slate-500">{{ cita.propietario.get_full_name|default:cita.propietario.username }} ({{ cita.mascota.raza }})</div>
+                                </td>
+                                <td class="py-4 px-2">
+                                    <span class="font-semibold text-slate-800">{{ cita.servicio.nombre }}</span>
+                                    <span class="block text-xs font-bold text-[#00685f]">${{ cita.servicio.precio }}</span>
+                                </td>
+                                <td class="py-4 px-2">
+                                    <div class="font-semibold text-slate-800">{{ cita.fecha|date:"d M Y" }}</div>
+                                    <div class="text-xs text-slate-500">{{ cita.hora|time:"H:i" }} hrs</div>
+                                </td>
+                                <td class="py-4 px-2">
+                                    {% if cita.estado == 'CONFIRMADA' %}
+                                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">Confirmada</span>
+                                    {% elif cita.estado == 'PENDIENTE' %}
+                                        <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">Pendiente</span>
+                                    {% elif cita.estado == 'ATENDIDA' %}
+                                        <span class="px-2.5 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-bold">Atendida</span>
+                                    {% else %}
+                                        <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">Cancelada</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 px-2 min-w-[210px]">
+                                    <form method="post" action="{% url 'actualizar_pago_cita' cita.id %}" class="space-y-2">
+                                        {% csrf_token %}
+                                        <select name="estado_pago" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
+                                            <option value="PENDIENTE" {% if cita.estado_pago == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                                            <option value="ABONADO" {% if cita.estado_pago == 'ABONADO' %}selected{% endif %}>Abonado</option>
+                                            <option value="PAGADO" {% if cita.estado_pago == 'PAGADO' %}selected{% endif %}>Pagado</option>
+                                        </select>
+                                        <div class="flex gap-2">
+                                            <select name="metodo_pago" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
+                                                <option value="EFECTIVO" {% if cita.metodo_pago == 'EFECTIVO' %}selected{% endif %}>Efectivo</option>
+                                                <option value="TRANSFERENCIA" {% if cita.metodo_pago == 'TRANSFERENCIA' %}selected{% endif %}>Transferencia</option>
+                                                <option value="TARJETA" {% if cita.metodo_pago == 'TARJETA' %}selected{% endif %}>Tarjeta</option>
+                                            </select>
+                                            <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold hover:bg-slate-800">
+                                                OK
+                                            </button>
+                                        </div>
+                                    </form>
+                                </td>
+                                <td class="py-4 px-2 min-w-[260px]">
+                                    <form method="post" action="{% url 'actualizar_seguimiento_cita' cita.id %}" class="space-y-2">
+                                        {% csrf_token %}
+                                        <div class="flex items-center gap-2">
+                                            <select name="etapa_seguimiento" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
+                                                {% for value, label in cita.ETAPAS_SEGUIMIENTO %}
+                                                    <option value="{{ value }}" {% if cita.etapa_seguimiento == value %}selected{% endif %}>{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-[#00685f] text-white text-xs font-bold hover:bg-teal-800">
+                                                Guardar
+                                            </button>
+                                        </div>
+                                        <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+                                            <div class="h-full bg-[#00685f]" style="width: {{ cita.progreso }}%;"></div>
+                                        </div>
+                                        <textarea name="nota_seguimiento" rows="2" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs" placeholder="Nota para el cliente">{{ cita.nota_seguimiento|default_if_none:"" }}</textarea>
+                                    </form>
+                                </td>
+                                <td class="py-4 px-2 text-right">
+                                    <form method="post" action="{% url 'cambiar_estado_cita' cita.id %}" class="inline-flex items-center gap-1">
+                                        {% csrf_token %}
+                                        {% if cita.estado == 'PENDIENTE' %}
+                                            <button type="submit" name="nuevo_estado" value="CONFIRMADA" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition">
+                                                Confirmar
+                                            </button>
+                                        {% endif %}
+                                        {% if cita.estado == 'CONFIRMADA' or cita.estado == 'PENDIENTE' %}
+                                            <button type="submit" name="nuevo_estado" value="ATENDIDA" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-xs transition">
+                                                Marcar Atendida
+                                            </button>
+                                            <button type="submit" name="nuevo_estado" value="CANCELADA" class="px-2.5 py-1 bg-slate-200 hover:bg-red-100 hover:text-red-700 text-slate-700 rounded-lg font-semibold text-xs transition">
+                                                Cancelar
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-center text-slate-500 py-8">No hay citas en este estado.</p>
+        {% endif %}
+    </div>
+
+    <!-- Services Management -->
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm">
+        <h2 class="font-headline font-bold text-xl text-slate-900 mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#00685f]">inventory_2</span>
+            Gestión de Estado de Servicios en Catálogo
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for s in servicios %}
+                <div class="p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">{{ s.nombre }}</h4>
+                        <p class="text-xs text-slate-500">${{ s.precio }} • {{ s.duracion_minutos }} min</p>
+                    </div>
+
+                    <a href="{% url 'toggle_servicio' s.id %}" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                        {% if s.activo %}Activo{% else %}Inactivo{% endif %}
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
