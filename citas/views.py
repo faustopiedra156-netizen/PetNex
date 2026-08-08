@@ -4,13 +4,12 @@ import requests
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.db.models import Sum, Count, Q
-from django.http import JsonResponse
 from .models import Servicio, Mascota, PerfilCliente, Cita
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, ServicioForm, RegistroForm
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, RegistroForm
 
 
 def csrf_failure(request, reason=""):
@@ -18,8 +17,12 @@ def csrf_failure(request, reason=""):
 
 
 def home_view(request):
-    servicios_destacados = Servicio.objects.filter(activo=True, destacado=True)[:4]
-    servicios_todos = Servicio.objects.filter(activo=True)[:6]
+    servicios_destacados = Servicio.objects.filter(activo=True, destacado=True).only(
+        'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
+    )[:4]
+    servicios_todos = Servicio.objects.filter(activo=True).only(
+        'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
+    )[:6]
     total_mascotas = Mascota.objects.count()
     total_citas = Cita.objects.filter(estado='ATENDIDA').count()
     
@@ -34,10 +37,11 @@ def home_view(request):
 
 def servicios_view(request):
     categoria = request.GET.get('categoria', 'todas')
+    servicios = Servicio.objects.filter(activo=True).only(
+        'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos', 'icono'
+    )
     if categoria and categoria != 'todas':
-        servicios = Servicio.objects.filter(activo=True, categoria=categoria)
-    else:
-        servicios = Servicio.objects.filter(activo=True)
+        servicios = servicios.filter(categoria=categoria)
 
     categorias = Servicio.CATEGORIAS
     context = {
@@ -52,7 +56,11 @@ def contacto_view(request):
     if request.method == 'POST':
         messages.success(request, "Mensaje recibido. Te responderemos por WhatsApp o correo lo antes posible.")
         return redirect('contacto')
-    return render(request, 'contacto.html')
+    return render(request, 'contacto.html', {
+        'contact_phone': settings.PETCARE_CONTACT_PHONE,
+        'contact_email': settings.PETCARE_CONTACT_EMAIL,
+        'contact_address': settings.PETCARE_ADDRESS,
+    })
 
 
 @login_required
@@ -94,7 +102,7 @@ def agendar_cita_view(request):
 
 @login_required
 def mis_citas_view(request):
-    citas = Cita.objects.filter(propietario=request.user).order_by('-fecha', '-hora')
+    citas = Cita.objects.select_related('mascota', 'servicio').filter(propietario=request.user).order_by('-fecha', '-hora')
     context = {
         'citas': citas,
     }
@@ -197,7 +205,7 @@ def crear_checkout_datafast(request, cita):
     }
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
-        response = requests.post(url, data=data, headers=headers, timeout=20)
+        response = requests.post(url, data=data, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
         response.raise_for_status()
         return response.json().get('id')
     except requests.RequestException:
@@ -229,7 +237,7 @@ def datafast_result_view(request, cita_id):
     params = {'entityId': settings.DATAFAST_ENTITY_ID}
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=20)
+        response = requests.get(url, params=params, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
         response.raise_for_status()
         payload = response.json()
     except requests.RequestException:
@@ -338,27 +346,29 @@ def gestion_admin_view(request):
 
     estado_filtro = request.GET.get('estado', 'TODOS')
     if estado_filtro and estado_filtro != 'TODOS':
-        citas = Cita.objects.filter(estado=estado_filtro).order_by('-fecha', '-hora')
+        citas = Cita.objects.select_related('propietario', 'mascota', 'servicio').filter(estado=estado_filtro).order_by('-fecha', '-hora')
     else:
-        citas = Cita.objects.all().order_by('-fecha', '-hora')
+        citas = Cita.objects.select_related('propietario', 'mascota', 'servicio').all().order_by('-fecha', '-hora')
 
-    servicios = Servicio.objects.all()
+    servicios = Servicio.objects.only('nombre', 'precio', 'duracion_minutos', 'activo')
     
     # Stats
-    total_citas = Cita.objects.count()
-    pendientes = Cita.objects.filter(estado='PENDIENTE').count()
-    confirmadas = Cita.objects.filter(estado='CONFIRMADA').count()
-    atendidas = Cita.objects.filter(estado='ATENDIDA').count()
+    resumen = Cita.objects.aggregate(
+        total=Count('id'),
+        pendientes=Count('id', filter=Q(estado='PENDIENTE')),
+        confirmadas=Count('id', filter=Q(estado='CONFIRMADA')),
+        atendidas=Count('id', filter=Q(estado='ATENDIDA')),
+    )
     ingresos = Cita.objects.filter(estado='ATENDIDA').aggregate(total=Sum('servicio__precio'))['total'] or 0
 
     context = {
         'citas': citas,
         'servicios': servicios,
         'estado_filtro': estado_filtro,
-        'total_citas': total_citas,
-        'pendientes': pendientes,
-        'confirmadas': confirmadas,
-        'atendidas': atendidas,
+        'total_citas': resumen['total'],
+        'pendientes': resumen['pendientes'],
+        'confirmadas': resumen['confirmadas'],
+        'atendidas': resumen['atendidas'],
         'ingresos': ingresos,
     }
     return render(request, 'gestion.html', context)

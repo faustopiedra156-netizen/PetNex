@@ -7,22 +7,27 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "127.0.0.1,localhost"
-).split(",")
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
-        'CSRF_TRUSTED_ORIGINS',
-        'http://127.0.0.1:8081,http://localhost:8081,http://127.0.0.1:8080,http://localhost:8080',
-    ).split(',')
-    if origin.strip()
-]
+
+def env_list(name, default=''):
+    return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
+
+
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
+
+DEBUG = env_bool('DEBUG', True)
+
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '127.0.0.1,localhost')
+CSRF_TRUSTED_ORIGINS = env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://127.0.0.1:8081,http://localhost:8081,http://127.0.0.1:8080,http://localhost:8080',
+)
 CSRF_FAILURE_VIEW = 'citas.views.csrf_failure'
 
 
@@ -71,7 +76,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'petcare_loja.wsgi.application'
 
-DATABASE_URL = os.environ.get('DATABASE_URL')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
     DATABASES = {
@@ -140,12 +145,21 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-DATAFAST_BASE_URL = os.environ.get('DATAFAST_BASE_URL', 'https://test.oppwa.com')
-DATAFAST_ENTITY_ID = os.environ.get('DATAFAST_ENTITY_ID', '')
-DATAFAST_AUTHORIZATION = os.environ.get('DATAFAST_AUTHORIZATION', '')
-DATAFAST_BRANDS = os.environ.get('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
+DATAFAST_BASE_URL = os.getenv('DATAFAST_BASE_URL', 'https://test.oppwa.com').rstrip('/')
+DATAFAST_ENTITY_ID = os.getenv('DATAFAST_ENTITY_ID', '')
+DATAFAST_AUTHORIZATION = os.getenv('DATAFAST_AUTHORIZATION', '')
+DATAFAST_BRANDS = os.getenv('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
+DATAFAST_TIMEOUT_SECONDS = int(os.getenv('DATAFAST_TIMEOUT_SECONDS', '20'))
 
-TRANSFER_BANK_NAME = os.environ.get('TRANSFER_BANK_NAME', 'Banco Pichincha')
-TRANSFER_ACCOUNT_NUMBER = os.environ.get('TRANSFER_ACCOUNT_NUMBER', '0000000000')
-TRANSFER_ACCOUNT_OWNER = os.environ.get('TRANSFER_ACCOUNT_OWNER', 'PetCare Loja')
-TRANSFER_ACCOUNT_ID = os.environ.get('TRANSFER_ACCOUNT_ID', '0000000000000')
+TRANSFER_BANK_NAME = os.getenv('TRANSFER_BANK_NAME', 'Banco Pichincha')
+TRANSFER_ACCOUNT_NUMBER = os.getenv('TRANSFER_ACCOUNT_NUMBER', '0000000000')
+TRANSFER_ACCOUNT_OWNER = os.getenv('TRANSFER_ACCOUNT_OWNER', 'PetCare Loja')
+TRANSFER_ACCOUNT_ID = os.getenv('TRANSFER_ACCOUNT_ID', '0000000000000')
+
+PETCARE_CONTACT_EMAIL = os.getenv('PETCARE_CONTACT_EMAIL', 'Petcare@gmail.com')
+PETCARE_CONTACT_PHONE = os.getenv('PETCARE_CONTACT_PHONE', '+593 98 3298707')
+PETCARE_ADDRESS = os.getenv('PETCARE_ADDRESS', 'Av. Universitaria, Loja, Ecuador')
+
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

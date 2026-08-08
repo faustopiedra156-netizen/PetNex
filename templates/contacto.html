@@ -17,7 +17,7 @@
                     <span class="material-symbols-outlined text-[#00685f]">call</span>
                     <div>
                         <h2 class="font-headline font-bold text-slate-900">Teléfono / WhatsApp</h2>
-                        <p class="text-sm text-slate-600">+593 98 3298707</p>
+                        <p class="text-sm text-slate-600">{{ contact_phone }}</p>
                     </div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4">
@@ -28,10 +28,17 @@
                     </div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4">
+                    <span class="material-symbols-outlined text-[#00685f]">mail</span>
+                    <div>
+                        <h2 class="font-headline font-bold text-slate-900">Correo</h2>
+                        <p class="text-sm text-slate-600">{{ contact_email }}</p>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4">
                     <span class="material-symbols-outlined text-[#00685f]">location_on</span>
                     <div>
                         <h2 class="font-headline font-bold text-slate-900">Dirección</h2>
-                        <p class="text-sm text-slate-600">Av. Universitaria, Loja, Ecuador</p>
+                        <p class="text-sm text-slate-600">{{ contact_address }}</p>
                     </div>
                 </div>
             </div>
