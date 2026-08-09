@@ -8,8 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.db.models import Sum, Count, Q
-from .models import Servicio, Mascota, PerfilCliente, Cita
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, RegistroForm
+from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
 PROGRESO_POR_ETAPA = {
@@ -22,6 +22,13 @@ PROGRESO_POR_ETAPA = {
     'LISTA': 100,
     'ENTREGADA': 100,
 }
+ESCALA_CALIFICACION = [
+    {'valor': 1, 'texto': 'Mala', 'detalle': 'No cumplió lo esperado.'},
+    {'valor': 2, 'texto': 'Regular', 'detalle': 'Hubo varios detalles por mejorar.'},
+    {'valor': 3, 'texto': 'Buena', 'detalle': 'Cumplió de forma aceptable.'},
+    {'valor': 4, 'texto': 'Muy buena', 'detalle': 'Buen servicio con detalles menores.'},
+    {'valor': 5, 'texto': 'Excelente', 'detalle': 'Servicio completo y muy satisfactorio.'},
+]
 DATAFAST_RESULT_OK_PATTERN = re.compile(r'^(000\.000\.|000\.100\.1|000\.[36])')
 
 
@@ -139,11 +146,43 @@ def agendar_cita_view(request):
 
 @login_required
 def mis_citas_view(request):
-    citas = Cita.objects.select_related('mascota', 'servicio').filter(propietario=request.user).order_by('-fecha', '-hora')
+    citas = Cita.objects.select_related('mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
     context = {
         'citas': citas,
     }
     return render(request, 'mis_citas.html', context)
+
+
+@login_required
+def calificar_cita_view(request, cita_id):
+    cita = get_object_or_404(
+        Cita.objects.select_related('mascota', 'servicio'),
+        id=cita_id,
+        propietario=request.user,
+    )
+    if cita.estado != 'ATENDIDA':
+        messages.error(request, "Solo puedes calificar una cita atendida.")
+        return redirect('mis_citas')
+
+    calificacion = Calificacion.objects.filter(cita=cita, cliente=request.user).first()
+    if request.method == 'POST':
+        form = CalificacionForm(request.POST, instance=calificacion)
+        if form.is_valid():
+            nueva_calificacion = form.save(commit=False)
+            nueva_calificacion.cita = cita
+            nueva_calificacion.cliente = request.user
+            nueva_calificacion.save()
+            messages.success(request, "Gracias por calificar el servicio de PetCare.")
+            return redirect('mis_citas')
+    else:
+        form = CalificacionForm(instance=calificacion)
+
+    return render(request, 'calificar_cita.html', {
+        'cita': cita,
+        'form': form,
+        'escala_calificacion': ESCALA_CALIFICACION,
+        'puntuacion_actual': str(form['puntuacion'].value() or ''),
+    })
 
 
 @login_required

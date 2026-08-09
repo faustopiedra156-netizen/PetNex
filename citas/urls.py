@@ -7,6 +7,7 @@ urlpatterns = [
     path('contacto/', views.contacto_view, name='contacto'),
     path('citas/agendar/', views.agendar_cita_view, name='agendar_cita'),
     path('citas/mis-citas/', views.mis_citas_view, name='mis_citas'),
+    path('citas/<int:cita_id>/calificar/', views.calificar_cita_view, name='calificar_cita'),
     path('citas/<int:cita_id>/pagar/', views.pagar_cita_view, name='pagar_cita'),
     path('citas/<int:cita_id>/tarjeta/', views.datafast_widget_view, name='datafast_widget'),
     path('citas/<int:cita_id>/tarjeta/resultado/', views.datafast_result_view, name='datafast_result'),

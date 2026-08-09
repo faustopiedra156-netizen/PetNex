@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Calificar Servicio - PetCare Loja{% endblock %}
+
+{% block content %}
+<div class="py-12 max-w-5xl mx-auto px-4 sm:px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        <section class="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-bold text-[#00685f] uppercase tracking-wide">Servicio atendido</span>
+            <h1 class="font-headline font-black text-2xl text-slate-900 mt-2">{{ cita.mascota.nombre }}</h1>
+            <div class="mt-5 space-y-3 text-sm">
+                <p class="flex justify-between gap-3">
+                    <span class="text-slate-500">Servicio</span>
+                    <span class="font-bold text-slate-900 text-right">{{ cita.servicio.nombre }}</span>
+                </p>
+                <p class="flex justify-between gap-3">
+                    <span class="text-slate-500">Fecha</span>
+                    <span class="font-bold text-slate-900">{{ cita.fecha|date:"d M Y" }}</span>
+                </p>
+                <p class="flex justify-between gap-3">
+                    <span class="text-slate-500">Hora</span>
+                    <span class="font-bold text-slate-900">{{ cita.hora|time:"H:i" }}</span>
+                </p>
+            </div>
+
+            <div class="mt-6 pt-5 border-t border-slate-200">
+                <h2 class="font-headline font-bold text-slate-900 mb-3">Escala de calificacion</h2>
+                <div class="space-y-2">
+                    {% for item in escala_calificacion %}
+                        <div class="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="font-bold text-sm text-slate-800">{{ item.valor }} estrella{% if item.valor != 1 %}s{% endif %}</span>
+                                <span class="text-amber-500 text-sm" aria-label="{{ item.valor }} estrellas">
+                                    {% if item.valor == 1 %}&#9733;&#9734;&#9734;&#9734;&#9734;{% endif %}
+                                    {% if item.valor == 2 %}&#9733;&#9733;&#9734;&#9734;&#9734;{% endif %}
+                                    {% if item.valor == 3 %}&#9733;&#9733;&#9733;&#9734;&#9734;{% endif %}
+                                    {% if item.valor == 4 %}&#9733;&#9733;&#9733;&#9733;&#9734;{% endif %}
+                                    {% if item.valor == 5 %}&#9733;&#9733;&#9733;&#9733;&#9733;{% endif %}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1"><b>{{ item.texto }}:</b> {{ item.detalle }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-3 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-xl">
+            <span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold uppercase tracking-wide">Opinion del cliente</span>
+            <h2 class="font-headline font-black text-2xl text-slate-900 mt-3">Como calificas el servicio?</h2>
+            <p class="text-sm text-slate-500 mt-1">Tu opinion ayuda a mejorar la atencion y el cuidado de cada mascota.</p>
+
+            <form method="post" class="mt-6 space-y-6" id="ratingForm">
+                {% csrf_token %}
+
+                <div>
+                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-3">Selecciona una calificacion</label>
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div class="flex flex-row-reverse justify-end gap-2 rating-stars" role="radiogroup" aria-label="Calificacion del servicio">
+                            {% for item in escala_calificacion reversed %}
+                                <input
+                                    type="radio"
+                                    id="rating-{{ item.valor }}"
+                                    name="puntuacion"
+                                    value="{{ item.valor }}"
+                                    class="sr-only rating-input"
+                                    data-label="{{ item.texto }}"
+                                    data-detail="{{ item.detalle }}"
+                                    {% if puntuacion_actual == item.valor|stringformat:"s" %}checked{% endif %}
+                                >
+                                <label
+                                    for="rating-{{ item.valor }}"
+                                    class="rating-star cursor-pointer text-4xl sm:text-5xl leading-none text-slate-300 transition hover:scale-110"
+                                    title="{{ item.valor }} estrella{% if item.valor != 1 %}s{% endif %} - {{ item.texto }}"
+                                    aria-label="{{ item.valor }} estrella{% if item.valor != 1 %}s{% endif %} - {{ item.texto }}"
+                                >&#9733;</label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mt-5 rounded-xl bg-white border border-slate-200 p-4 min-h-[96px]" aria-live="polite">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="font-headline font-black text-xl text-slate-900" id="ratingTitle">Elige una calificacion</p>
+                                <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-black" id="ratingValue">0/5</span>
+                            </div>
+                            <p class="text-sm text-slate-600 mt-2" id="ratingDetail">Al seleccionar una estrella veras aqui que significa esa puntuacion.</p>
+                        </div>
+                    </div>
+                    {% if form.puntuacion.errors %}
+                        <p class="text-red-600 text-xs mt-2">{{ form.puntuacion.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">Comentario opcional</label>
+                    {{ form.comentario }}
+                    {% if form.comentario.errors %}
+                        <p class="text-red-600 text-xs mt-2">{{ form.comentario.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button class="flex-1 py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800 transition">
+                        Guardar calificacion
+                    </button>
+                    <a href="{% url 'mis_citas' %}" class="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-headline font-bold text-center hover:bg-slate-50 transition">
+                        Volver
+                    </a>
+                </div>
+            </form>
+        </section>
+    </div>
+</div>
+
+<style>
+    .rating-stars .rating-star:hover,
+    .rating-stars .rating-star:hover ~ .rating-star,
+    .rating-stars .rating-input:checked ~ .rating-star {
+        color: #f59e0b;
+    }
+
+    .rating-stars .rating-input:focus-visible + .rating-star {
+        outline: 3px solid rgba(0, 104, 95, 0.35);
+        outline-offset: 6px;
+        border-radius: 0.5rem;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputs = Array.from(document.querySelectorAll('.rating-input'));
+        const title = document.getElementById('ratingTitle');
+        const value = document.getElementById('ratingValue');
+        const detail = document.getElementById('ratingDetail');
+
+        function updateRating(input) {
+            if (!input) return;
+            const starsText = input.value === '1' ? '1 estrella' : `${input.value} estrellas`;
+            title.textContent = `${starsText} - ${input.dataset.label}`;
+            value.textContent = `${input.value}/5`;
+            detail.textContent = input.dataset.detail;
+        }
+
+        inputs.forEach(function (input) {
+            input.addEventListener('change', function () {
+                updateRating(input);
+            });
+
+            const label = document.querySelector(`label[for="${input.id}"]`);
+            label.addEventListener('mouseenter', function () {
+                updateRating(input);
+            });
+        });
+
+        const checked = inputs.find(function (input) {
+            return input.checked;
+        });
+        updateRating(checked);
+    });
+</script>
+{% endblock %}

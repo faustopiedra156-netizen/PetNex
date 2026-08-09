@@ -8,6 +8,9 @@ Proyecto web para la peluqueria canina PetCare Loja, desarrollado solo con Djang
 - Registro, inicio y cierre de sesion.
 - Registro, edicion y eliminacion de mascotas.
 - Reserva, consulta y cancelacion de citas.
+- Seguimiento del estado de atencion de la mascota.
+- Calificacion del servicio con estrellas.
+- Metodos de pago: transferencia, pago fisico y tarjeta mediante Datafast.
 - Panel de administracion para gestionar citas y activar/desactivar servicios.
 - Administracion avanzada mediante `/admin/`.
 - Diseno adaptable para computador y celular.
@@ -35,6 +38,15 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 py manage.py makemigrations
 py manage.py migrate
 ```
+
+Si aparece un error como `relation "citas_calificacion" does not exist`, significa que falta aplicar migraciones en la base de datos activa. Ejecuta:
+
+```powershell
+py manage.py showmigrations citas
+py manage.py migrate
+```
+
+La migracion `citas.0006_calificacion` debe quedar marcada con `[X]`.
 
 ## 3. Cargar datos de ejemplo
 
@@ -83,6 +95,18 @@ $env:TRANSFER_ACCOUNT_NUMBER="0000000000"
 $env:TRANSFER_ACCOUNT_OWNER="PetCare Loja"
 $env:TRANSFER_ACCOUNT_ID="0000000000000"
 ```
+
+## Despliegue en produccion
+
+Antes de subir o reiniciar el sitio en produccion:
+
+```powershell
+pip install -r requirements.txt
+py manage.py check --deploy
+py manage.py migrate
+```
+
+En Supabase o cualquier PostgreSQL, verifica que `DATABASE_URL` apunte a la base correcta antes de ejecutar `migrate`. Si usas un panel como Render, Railway o similar, agrega `py manage.py migrate` como comando de release o ejecútalo en la consola del servicio despues de cada despliegue con cambios de modelos.
 
 ## Estructura principal
 

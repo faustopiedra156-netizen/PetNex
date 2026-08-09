@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Mascota, PerfilCliente, Cita, Servicio
+from .models import Mascota, PerfilCliente, Cita, Servicio, Calificacion
 import datetime
 
 HORA_APERTURA = datetime.time(8, 30)
@@ -126,6 +126,20 @@ class ServicioForm(forms.ModelForm):
             'precio': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300', 'step': '0.5'}),
             'duracion_minutos': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300'}),
             'icono': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300'}),
+        }
+
+
+class CalificacionForm(forms.ModelForm):
+    class Meta:
+        model = Calificacion
+        fields = ['puntuacion', 'comentario']
+        widgets = {
+            'puntuacion': forms.RadioSelect(attrs={'class': 'sr-only'}),
+            'comentario': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition',
+                'rows': 4,
+                'placeholder': 'Cuéntanos cómo fue la atención, el resultado del corte o cualquier detalle importante.',
+            }),
         }
 
 

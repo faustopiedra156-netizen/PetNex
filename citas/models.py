@@ -122,3 +122,28 @@ class Cita(models.Model):
 
     def __str__(self):
         return f"Cita #{self.id} - {self.mascota.nombre} ({self.servicio.nombre}) - {self.fecha} {self.hora}"
+
+
+class Calificacion(models.Model):
+    ESCALA = [
+        (1, '1 estrella - Mala'),
+        (2, '2 estrellas - Regular'),
+        (3, '3 estrellas - Buena'),
+        (4, '4 estrellas - Muy buena'),
+        (5, '5 estrellas - Excelente'),
+    ]
+
+    cita = models.OneToOneField(Cita, on_delete=models.CASCADE, related_name='calificacion', verbose_name="Cita")
+    cliente = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calificaciones', verbose_name="Cliente")
+    puntuacion = models.PositiveSmallIntegerField(choices=ESCALA, verbose_name="Puntuación")
+    comentario = models.TextField(blank=True, verbose_name="Comentario")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Calificación"
+        verbose_name_plural = "Calificaciones"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"{self.puntuacion}/5 - Cita #{self.cita_id}"

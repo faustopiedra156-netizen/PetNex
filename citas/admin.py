@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Servicio, Mascota, PerfilCliente, Cita
+from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion
 
 @admin.register(Servicio)
 class ServicioAdmin(admin.ModelAdmin):
@@ -27,3 +27,10 @@ class CitaAdmin(admin.ModelAdmin):
 class PerfilClienteAdmin(admin.ModelAdmin):
     list_display = ('usuario', 'telefono', 'barrio', 'contacto_preferido')
     search_fields = ('usuario__username', 'usuario__first_name', 'usuario__last_name', 'telefono', 'barrio')
+
+
+@admin.register(Calificacion)
+class CalificacionAdmin(admin.ModelAdmin):
+    list_display = ('cita', 'cliente', 'puntuacion', 'creado_en')
+    list_filter = ('puntuacion', 'creado_en')
+    search_fields = ('cliente__username', 'cliente__first_name', 'cliente__last_name', 'comentario')
