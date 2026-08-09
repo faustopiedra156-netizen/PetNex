@@ -29,7 +29,10 @@ def env_int(name, default):
         return default
 
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
+SECRET_KEY = os.getenv(
+    'SECRET_KEY',
+    os.getenv('DJANGO_SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
+)
 
 DEBUG = env_bool('DEBUG', True)
 
@@ -121,6 +124,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
