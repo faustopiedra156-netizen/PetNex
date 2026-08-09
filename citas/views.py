@@ -11,6 +11,43 @@ from django.db.models import Sum, Count, Q
 from .models import Servicio, Mascota, PerfilCliente, Cita
 from .forms import MascotaForm, PerfilClienteForm, CitaForm, RegistroForm
 
+ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
+PROGRESO_POR_ETAPA = {
+    'AGENDADA': 0,
+    'RECIBIDA': 15,
+    'BANO': 35,
+    'SECADO': 55,
+    'CORTE': 75,
+    'REVISION': 90,
+    'LISTA': 100,
+    'ENTREGADA': 100,
+}
+DATAFAST_RESULT_OK_PATTERN = re.compile(r'^(000\.000\.|000\.100\.1|000\.[36])')
+
+
+def es_staff(user):
+    return user.is_staff or user.is_superuser
+
+
+def redirect_si_no_staff(request):
+    if es_staff(request.user):
+        return None
+    messages.error(request, "Acceso no autorizado.")
+    return redirect('home')
+
+
+def datos_transferencia():
+    return {
+        'banco': settings.TRANSFER_BANK_NAME,
+        'cuenta': settings.TRANSFER_ACCOUNT_NUMBER,
+        'titular': settings.TRANSFER_ACCOUNT_OWNER,
+        'identificacion': settings.TRANSFER_ACCOUNT_ID,
+    }
+
+
+def datafast_configurado():
+    return bool(settings.DATAFAST_ENTITY_ID and settings.DATAFAST_AUTHORIZATION)
+
 
 def csrf_failure(request, reason=""):
     return render(request, 'csrf_error.html', {'reason': reason}, status=403)
@@ -71,9 +108,9 @@ def agendar_cita_view(request):
         servicio_preseleccionado = Servicio.objects.filter(id=servicio_id, activo=True).first()
 
     # Verify user has at least one pet registered
-    mascotas_usuario = Mascota.objects.filter(propietario=request.user)
+    mascotas_usuario = Mascota.objects.filter(propietario=request.user).only('nombre', 'raza')
     if not mascotas_usuario.exists():
-        messages.info(request, "¡Primero registra a tu mascota para poder agendar una cita de peluquería!")
+        messages.info(request, "Primero registra a tu mascota para poder agendar una cita de peluquería.")
         return redirect('nueva_mascota')
 
     if request.method == 'POST':
@@ -82,7 +119,7 @@ def agendar_cita_view(request):
             cita = form.save(commit=False)
             cita.propietario = request.user
             cita.save()
-            messages.success(request, f"¡Cita agendada para {cita.mascota.nombre} en {cita.servicio.nombre} el {cita.fecha}! Te contactaremos para confirmar.")
+            messages.success(request, f"Cita agendada para {cita.mascota.nombre} en {cita.servicio.nombre} el {cita.fecha}. Te contactaremos para confirmar.")
             return redirect('mis_citas')
         else:
             messages.error(request, "Por favor revisa los campos ingresados.")
@@ -112,7 +149,7 @@ def mis_citas_view(request):
 @login_required
 def cancelar_cita_view(request, cita_id):
     cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
-    if cita.estado in ['PENDIENTE', 'CONFIRMADA']:
+    if cita.estado in ESTADOS_EDITABLES_CLIENTE:
         cita.estado = 'CANCELADA'
         cita.save()
         messages.warning(request, f"La cita para {cita.mascota.nombre} ha sido cancelada.")
@@ -132,12 +169,7 @@ def pagar_cita_view(request, cita_id):
         messages.info(request, "Esta cita ya se encuentra pagada.")
         return redirect('mis_citas')
 
-    transferencia = {
-        'banco': settings.TRANSFER_BANK_NAME,
-        'cuenta': settings.TRANSFER_ACCOUNT_NUMBER,
-        'titular': settings.TRANSFER_ACCOUNT_OWNER,
-        'identificacion': settings.TRANSFER_ACCOUNT_ID,
-    }
+    transferencia = datos_transferencia()
 
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago')
@@ -163,7 +195,7 @@ def pagar_cita_view(request, cita_id):
             return redirect('mis_citas')
 
         if metodo_pago == 'TARJETA':
-            if not settings.DATAFAST_ENTITY_ID or not settings.DATAFAST_AUTHORIZATION:
+            if not datafast_configurado():
                 messages.error(request, "El pago con tarjeta aún no tiene credenciales Datafast configuradas.")
                 return redirect('pagar_cita', cita_id=cita.id)
 
@@ -182,7 +214,7 @@ def pagar_cita_view(request, cita_id):
     return render(request, 'pagar_cita.html', {
         'cita': cita,
         'transferencia': transferencia,
-        'tarjeta_configurada': bool(settings.DATAFAST_ENTITY_ID and settings.DATAFAST_AUTHORIZATION),
+        'tarjeta_configurada': datafast_configurado(),
     })
 
 
@@ -249,7 +281,7 @@ def datafast_result_view(request, cita_id):
     cita.datafast_result_code = result_code
     cita.referencia_pago = payload.get('id', '')
 
-    if re.match(r'^(000\.000\.|000\.100\.1|000\.[36])', result_code):
+    if DATAFAST_RESULT_OK_PATTERN.match(result_code):
         cita.estado_pago = 'PAGADO'
         messages.success(request, "Pago con tarjeta aprobado.")
     else:
@@ -262,7 +294,9 @@ def datafast_result_view(request, cita_id):
 
 @login_required
 def mis_mascotas_view(request):
-    mascotas = Mascota.objects.filter(propietario=request.user)
+    mascotas = Mascota.objects.filter(propietario=request.user).only(
+        'nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto_url'
+    )
     context = {
         'mascotas': mascotas,
     }
@@ -292,7 +326,7 @@ def nueva_mascota_view(request):
             mascota = form.save(commit=False)
             mascota.propietario = request.user
             mascota.save()
-            messages.success(request, f"¡{mascota.nombre} registrado con éxito en PetCare Loja!")
+            messages.success(request, f"{mascota.nombre} fue registrado con éxito en PetCare Loja.")
             
             # If user came from booking flow, redirect back to agendar
             if request.GET.get('next') == 'agendar':
@@ -340,7 +374,7 @@ def eliminar_mascota_view(request, mascota_id):
 # Staff / Admin Panel View
 @login_required
 def gestion_admin_view(request):
-    if not (request.user.is_staff or request.user.is_superuser):
+    if not es_staff(request.user):
         messages.error(request, "Acceso restringido a administradores.")
         return redirect('home')
 
@@ -376,9 +410,9 @@ def gestion_admin_view(request):
 
 @login_required
 def cambiar_estado_cita_view(request, cita_id):
-    if not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, "Acceso no autorizado.")
-        return redirect('home')
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
 
     cita = get_object_or_404(Cita, id=cita_id)
     nuevo_estado = request.POST.get('nuevo_estado')
@@ -392,9 +426,9 @@ def cambiar_estado_cita_view(request, cita_id):
 
 @login_required
 def actualizar_pago_cita_view(request, cita_id):
-    if not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, "Acceso no autorizado.")
-        return redirect('home')
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
 
     cita = get_object_or_404(Cita, id=cita_id)
     estado_pago = request.POST.get('estado_pago')
@@ -415,29 +449,18 @@ def actualizar_pago_cita_view(request, cita_id):
 
 @login_required
 def actualizar_seguimiento_cita_view(request, cita_id):
-    if not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, "Acceso no autorizado.")
-        return redirect('home')
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
 
     cita = get_object_or_404(Cita, id=cita_id)
     etapa = request.POST.get('etapa_seguimiento')
     nota = request.POST.get('nota_seguimiento', '').strip()
 
-    progreso_por_etapa = {
-        'AGENDADA': 0,
-        'RECIBIDA': 15,
-        'BANO': 35,
-        'SECADO': 55,
-        'CORTE': 75,
-        'REVISION': 90,
-        'LISTA': 100,
-        'ENTREGADA': 100,
-    }
-
     etapas_validas = dict(Cita.ETAPAS_SEGUIMIENTO)
     if etapa in etapas_validas:
         cita.etapa_seguimiento = etapa
-        cita.progreso = progreso_por_etapa.get(etapa, cita.progreso)
+        cita.progreso = PROGRESO_POR_ETAPA.get(etapa, cita.progreso)
         cita.nota_seguimiento = nota
         if etapa == 'ENTREGADA':
             cita.estado = 'ATENDIDA'
@@ -451,9 +474,9 @@ def actualizar_seguimiento_cita_view(request, cita_id):
 
 @login_required
 def toggle_servicio_view(request, servicio_id):
-    if not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, "Acceso no autorizado.")
-        return redirect('home')
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
 
     servicio = get_object_or_404(Servicio, id=servicio_id)
     servicio.activo = not servicio.activo
@@ -474,7 +497,7 @@ def registro_view(request):
             user.set_password(form.cleaned_data['password'])
             user.save()
             login(request, user)
-            messages.success(request, f"¡Bienvenido a PetCare Loja, {user.first_name or user.username}!")
+            messages.success(request, f"Bienvenido a PetCare Loja, {user.first_name or user.username}.")
             return redirect('home')
     else:
         form = RegistroForm()
@@ -494,7 +517,7 @@ def login_usuario_view(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
-                messages.success(request, f"¡Hola de nuevo, {user.first_name or user.username}!")
+                messages.success(request, f"Hola de nuevo, {user.first_name or user.username}.")
                 next_page = request.GET.get('next', 'home')
                 return redirect(next_page)
         else:

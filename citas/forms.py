@@ -3,6 +3,11 @@ from django.contrib.auth.models import User
 from .models import Mascota, PerfilCliente, Cita, Servicio
 import datetime
 
+HORA_APERTURA = datetime.time(8, 30)
+HORA_CIERRE = datetime.time(18, 30)
+MINUTOS_PERMITIDOS = {0, 30}
+
+
 class MascotaForm(forms.ModelForm):
     class Meta:
         model = Mascota
@@ -34,8 +39,8 @@ class CitaForm(forms.ModelForm):
         self.user = user
         super().__init__(*args, **kwargs)
         if user and user.is_authenticated:
-            self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user)
-        self.fields['servicio'].queryset = Servicio.objects.filter(activo=True)
+            self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).only('nombre', 'raza')
+        self.fields['servicio'].queryset = Servicio.objects.filter(activo=True).only('nombre', 'precio')
 
     def clean_fecha(self):
         fecha = self.cleaned_data['fecha']
@@ -47,11 +52,9 @@ class CitaForm(forms.ModelForm):
 
     def clean_hora(self):
         hora = self.cleaned_data['hora']
-        hora_inicio = datetime.time(8, 30)
-        hora_fin = datetime.time(18, 30)
-        if hora < hora_inicio or hora > hora_fin:
+        if hora < HORA_APERTURA or hora > HORA_CIERRE:
             raise forms.ValidationError("El horario de atención es de 08:30 a 18:30.")
-        if hora.minute not in [0, 30]:
+        if hora.minute not in MINUTOS_PERMITIDOS:
             raise forms.ValidationError("Agenda en bloques de 30 minutos, por ejemplo 09:00 o 09:30.")
         return hora
 

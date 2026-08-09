@@ -19,6 +19,16 @@ def env_list(name, default=''):
     return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
 
 
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
 
 DEBUG = env_bool('DEBUG', True)
@@ -149,7 +159,7 @@ DATAFAST_BASE_URL = os.getenv('DATAFAST_BASE_URL', 'https://test.oppwa.com').rst
 DATAFAST_ENTITY_ID = os.getenv('DATAFAST_ENTITY_ID', '')
 DATAFAST_AUTHORIZATION = os.getenv('DATAFAST_AUTHORIZATION', '')
 DATAFAST_BRANDS = os.getenv('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
-DATAFAST_TIMEOUT_SECONDS = int(os.getenv('DATAFAST_TIMEOUT_SECONDS', '20'))
+DATAFAST_TIMEOUT_SECONDS = env_int('DATAFAST_TIMEOUT_SECONDS', 20)
 
 TRANSFER_BANK_NAME = os.getenv('TRANSFER_BANK_NAME', 'Banco Pichincha')
 TRANSFER_ACCOUNT_NUMBER = os.getenv('TRANSFER_ACCOUNT_NUMBER', '0000000000')
@@ -163,3 +173,11 @@ PETCARE_ADDRESS = os.getenv('PETCARE_ADDRESS', 'Av. Universitaria, Loja, Ecuador
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
+    SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
