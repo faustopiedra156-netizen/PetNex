@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Panel de Gestión Administrador - PetCare Loja{% endblock %}
+{% block title %}Panel de Gestion Administrador - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,16 +11,20 @@
                 Modo Administrador
             </div>
             <h1 class="font-headline font-black text-3xl text-slate-900">Panel de Control & Gestión de Citas</h1>
-            <p class="text-slate-500 text-sm">Administra reservas, estados de atención y catálogo de servicios de PetCare Loja.</p>
+            <p class="text-slate-500 text-sm">Administra reservas, estados de atencion y catalogo de servicios de {{ business.name }}.</p>
         </div>
         <a href="/admin/" target="_blank" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-2">
             <span class="material-symbols-outlined text-base">settings</span>
             <span>Django Admin Nativo</span>
         </a>
+        <a href="{% url 'configuracion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-[#00685f] hover:bg-teal-800 text-white font-semibold text-xs transition flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">storefront</span>
+            <span>Configurar Local</span>
+        </a>
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
             <span class="text-xs font-semibold text-slate-400 block mb-1">Total Citas</span>
             <span class="font-headline font-black text-3xl text-slate-900">{{ total_citas }}</span>
@@ -35,8 +39,49 @@
         </div>
         <div class="bg-teal-50/60 p-5 rounded-2xl border border-teal-200/80 shadow-sm">
             <span class="text-xs font-bold text-[#00685f] block mb-1">Ingresos Estimados Atendidos</span>
-            <span class="font-headline font-black text-3xl text-[#00685f]">${{ ingresos }}</span>
+            <span class="font-headline font-black text-3xl text-[#00685f]">{{ business.currency_symbol }}{{ ingresos }}</span>
         </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-semibold text-slate-400 block mb-1">Citas de Hoy</span>
+            <span class="font-headline font-black text-3xl text-slate-900">{{ citas_de_hoy }}</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-semibold text-slate-400 block mb-1">Ingresos del Mes</span>
+            <span class="font-headline font-black text-3xl text-slate-900">{{ business.currency_symbol }}{{ ingresos_mes }}</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-semibold text-slate-400 block mb-1">Pagos Pendientes</span>
+            <span class="font-headline font-black text-3xl text-slate-900">{{ pagos_pendientes }}</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-semibold text-slate-400 block mb-1">Calificacion Promedio</span>
+            <span class="font-headline font-black text-3xl text-slate-900">{{ promedio_calificacion }}/5</span>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mb-8">
+        <h2 class="font-headline font-bold text-xl text-slate-900 mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#00685f]">today</span>
+            Agenda de Hoy
+        </h2>
+        {% if citas_hoy %}
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {% for cita in citas_hoy %}
+                    <div class="rounded-2xl border border-slate-200 p-4">
+                        <div class="text-xs font-black text-[#00685f]">{{ cita.hora|time:"H:i" }}</div>
+                        <div class="font-bold text-slate-900">{{ cita.mascota.nombre }}</div>
+                        <div class="text-xs font-bold text-slate-700">{{ cita.sucursal.nombre }}</div>
+                        <div class="text-xs text-slate-500">{{ cita.servicio.nombre }}</div>
+                        <div class="mt-2 text-xs font-semibold text-slate-700">{{ cita.get_estado_display }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">No hay citas programadas para hoy.</p>
+        {% endif %}
     </div>
 
     <!-- Appointment Filter Tabs -->
@@ -66,12 +111,25 @@
             </div>
         </div>
 
+        <div class="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold">
+            <span class="text-slate-500 font-bold mr-1">Sucursal:</span>
+            <a href="{% url 'gestion_admin' %}?estado={{ estado_filtro }}&sucursal=TODAS" class="px-3.5 py-2 rounded-xl transition {% if sucursal_filtro == 'TODAS' %}bg-[#00685f] text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                Todas
+            </a>
+            {% for sucursal in sucursales %}
+                <a href="{% url 'gestion_admin' %}?estado={{ estado_filtro }}&sucursal={{ sucursal.id }}" class="px-3.5 py-2 rounded-xl transition {% if sucursal_filtro == sucursal.id|stringformat:'s' %}bg-[#00685f] text-white{% else %}bg-teal-50 text-[#00685f] hover:bg-teal-100{% endif %}">
+                    {{ sucursal.nombre }}
+                </a>
+            {% endfor %}
+        </div>
+
         {% if citas %}
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm border-collapse">
                     <thead>
                         <tr class="border-b border-slate-200 text-slate-400 font-semibold text-xs uppercase tracking-wider">
                             <th class="pb-3 px-2">Cita #</th>
+                            <th class="pb-3 px-2">Sucursal</th>
                             <th class="pb-3 px-2">Mascota & Dueño</th>
                             <th class="pb-3 px-2">Servicio</th>
                             <th class="pb-3 px-2">Fecha y Hora</th>
@@ -86,12 +144,16 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-4 px-2 font-mono font-bold text-slate-400">#{{ cita.id }}</td>
                                 <td class="py-4 px-2">
+                                    <div class="font-bold text-slate-900">{{ cita.sucursal.nombre }}</div>
+                                    <div class="text-xs text-slate-500">{{ cita.sucursal.ciudad }}</div>
+                                </td>
+                                <td class="py-4 px-2">
                                     <div class="font-bold text-slate-900">{{ cita.mascota.nombre }}</div>
                                     <div class="text-xs text-slate-500">{{ cita.propietario.get_full_name|default:cita.propietario.username }} ({{ cita.mascota.raza }})</div>
                                 </td>
                                 <td class="py-4 px-2">
                                     <span class="font-semibold text-slate-800">{{ cita.servicio.nombre }}</span>
-                                    <span class="block text-xs font-bold text-[#00685f]">${{ cita.servicio.precio }}</span>
+                                    <span class="block text-xs font-bold text-[#00685f]">{{ business.currency_symbol }}{{ cita.servicio.precio }}</span>
                                 </td>
                                 <td class="py-4 px-2">
                                     <div class="font-semibold text-slate-800">{{ cita.fecha|date:"d M Y" }}</div>
@@ -187,7 +249,7 @@
                 <div class="p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
                     <div>
                         <h4 class="font-bold text-slate-800 text-sm">{{ s.nombre }}</h4>
-                        <p class="text-xs text-slate-500">${{ s.precio }} • {{ s.duracion_minutos }} min</p>
+                        <p class="text-xs text-slate-500">{{ business.currency_symbol }}{{ s.precio }} - {{ s.duracion_minutos }} min</p>
                     </div>
 
                     <a href="{% url 'toggle_servicio' s.id %}" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">

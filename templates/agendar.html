@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Agendar Cita - PetCare Loja{% endblock %}
+{% block title %}Agendar Cita - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-3xl mx-auto px-4 sm:px-6">
@@ -11,22 +11,42 @@
             </div>
             <div>
                 <h1 class="font-headline font-black text-2xl sm:text-3xl text-slate-900">Agendar Cita de Peluquería</h1>
-                <p class="text-slate-500 text-sm">Selecciona tu mascota, el servicio deseado y el horario que prefieras en Loja.</p>
+                <p class="text-slate-500 text-sm">Selecciona tu mascota, el servicio deseado y el horario que prefieras en {{ business.city }}.</p>
             </div>
         </div>
 
-        <form method="post" class="space-y-6">
+        <form id="agendaForm" method="post" class="space-y-6" novalidate>
             {% csrf_token %}
 
-            {% if form.non_field_errors %}
-                <div class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
-                    {{ form.non_field_errors.0 }}
+            {% if form.errors %}
+                <div class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                    <p class="font-headline font-bold mb-2">Revisa estos campos antes de confirmar:</p>
+                    <ul class="space-y-1">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
                 </div>
             {% endif %}
 
             <div>
+                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
+                    1. Selecciona la Sucursal
+                </label>
+                {{ form.sucursal }}
+                {% if form.sucursal.errors %}
+                    <p class="text-red-600 text-xs mt-1">{{ form.sucursal.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
                 <label class="block font-headline font-semibold text-sm text-slate-800 mb-2 flex items-center justify-between">
-                    <span>1. Selecciona tu Mascota</span>
+                    <span>2. Selecciona tu Mascota</span>
                     <a href="{% url 'nueva_mascota' %}?next=agendar" class="text-xs text-[#00685f] font-semibold hover:underline flex items-center gap-1">
                         <span class="material-symbols-outlined text-sm">add_circle</span>
                         + Registrar nueva mascota
@@ -40,7 +60,7 @@
 
             <div>
                 <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                    2. Servicio Solicitado
+                    3. Servicio Solicitado
                 </label>
                 {{ form.servicio }}
                 {% if form.servicio.errors %}
@@ -61,18 +81,31 @@
 
                 <div>
                     <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                        4. Hora Preferida
+                        5. Hora Preferida
                     </label>
                     {{ form.hora }}
+                    <div id="horariosGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+                    <p id="horariosHint" class="text-xs text-slate-400 mt-2">Selecciona una sucursal y fecha para ver horarios disponibles.</p>
                     {% if form.hora.errors %}
                         <p class="text-red-600 text-xs mt-1">{{ form.hora.errors.0 }}</p>
                     {% endif %}
                 </div>
             </div>
 
+            <div class="rounded-2xl border border-teal-100 bg-teal-50/60 p-4">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-[#00685f]">schedule</span>
+                    <div>
+                        <h2 class="font-headline font-bold text-slate-900 text-sm">Horario de atencion</h2>
+                        <p class="text-xs text-slate-600 mt-1">{{ business.opening_hours }}</p>
+                        <p class="text-xs text-slate-500 mt-1">No se aceptan reservas en domingos ni horarios ya ocupados en la misma sucursal.</p>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                    5. Observaciones o Notas Adicionales
+                    6. Observaciones o Notas Adicionales
                 </label>
                 {{ form.notas }}
                 <p class="text-xs text-slate-400 mt-1">Indica alergias, cortes específicos o detalles importantes para el groomer.</p>
@@ -87,4 +120,110 @@
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const sucursalSelect = document.getElementById('id_sucursal');
+        const fechaInput = document.getElementById('id_fecha');
+        const horaSelect = document.getElementById('id_hora');
+        const form = document.getElementById('agendaForm');
+        const grid = document.getElementById('horariosGrid');
+        const hint = document.getElementById('horariosHint');
+        const disponibilidadUrl = "{% url 'disponibilidad_horarios' %}";
+
+        function setHint(text, isError) {
+            hint.textContent = text;
+            hint.classList.toggle('text-red-600', Boolean(isError));
+            hint.classList.toggle('font-semibold', Boolean(isError));
+            hint.classList.toggle('text-slate-400', !isError);
+        }
+
+        function selectHora(hora) {
+            horaSelect.value = hora;
+            grid.querySelectorAll('button[data-hora]').forEach(function (button) {
+                const active = button.dataset.hora === hora;
+                button.classList.toggle('bg-[#00685f]', active);
+                button.classList.toggle('text-white', active);
+                button.classList.toggle('border-[#00685f]', active);
+                button.classList.toggle('bg-white', !active);
+                button.classList.toggle('text-slate-700', !active);
+            });
+            setHint('Hora seleccionada: ' + hora + '. Los horarios con check ya no estan disponibles.', false);
+        }
+
+        function renderHorarios(horarios, selectedHora) {
+            grid.innerHTML = '';
+            if (!horarios.length) {
+                setHint('Selecciona una sucursal y fecha para ver horarios disponibles.');
+                return;
+            }
+
+            horarios.forEach(function (item) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.dataset.hora = item.hora;
+                button.className = 'min-h-[44px] rounded-xl border px-3 py-2 text-sm font-bold transition flex items-center justify-center gap-1';
+
+                if (item.ocupado) {
+                    button.disabled = true;
+                    button.className += ' bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed';
+                    button.innerHTML = '<span class="material-symbols-outlined text-base">check_circle</span><span>' + item.hora + '</span>';
+                    button.title = 'Horario no disponible';
+                } else {
+                    button.className += ' bg-white text-slate-700 border-slate-200 hover:border-[#00685f] hover:text-[#00685f]';
+                    button.textContent = item.hora;
+                    button.addEventListener('click', function () {
+                        selectHora(item.hora);
+                    });
+                }
+
+                grid.appendChild(button);
+            });
+
+            if (selectedHora) {
+                const selectedButton = grid.querySelector('button[data-hora="' + selectedHora + '"]:not(:disabled)');
+                if (selectedButton) {
+                    selectHora(selectedHora);
+                    return;
+                }
+                horaSelect.value = '';
+            }
+            setHint('Los horarios con check ya no estan disponibles en esa sucursal.');
+        }
+
+        function cargarDisponibilidad(resetSelection) {
+            const sucursal = sucursalSelect.value;
+            const fecha = fechaInput.value;
+            const selectedHora = resetSelection ? '' : horaSelect.value;
+            if (resetSelection) {
+                horaSelect.value = '';
+            }
+
+            if (!sucursal || !fecha) {
+                renderHorarios([], '');
+                return;
+            }
+
+            setHint('Consultando disponibilidad...');
+            fetch(disponibilidadUrl + '?sucursal=' + encodeURIComponent(sucursal) + '&fecha=' + encodeURIComponent(fecha))
+                .then(function (response) { return response.json(); })
+                .then(function (data) { renderHorarios(data.horarios || [], selectedHora); })
+                .catch(function () {
+                    grid.innerHTML = '';
+                    setHint('No se pudo consultar la disponibilidad. Intenta nuevamente.', true);
+                });
+        }
+
+        sucursalSelect.addEventListener('change', function () { cargarDisponibilidad(true); });
+        fechaInput.addEventListener('change', function () { cargarDisponibilidad(true); });
+        form.addEventListener('submit', function (event) {
+            if (!horaSelect.value) {
+                event.preventDefault();
+                setHint('Selecciona una hora disponible antes de confirmar la cita.', true);
+                grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+        cargarDisponibilidad(false);
+    });
+</script>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Iniciar Sesion - PetCare Loja{% endblock %}
+{% block title %}Iniciar Sesion - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-16 max-w-md mx-auto px-4">
@@ -10,20 +10,40 @@
                 <span class="material-symbols-outlined text-2xl">account_circle</span>
             </div>
             <h1 class="font-headline font-black text-2xl text-slate-900">Iniciar Sesion</h1>
-            <p class="text-xs text-slate-500 mt-1">Accede a tus mascotas y citas en PetCare Loja</p>
+            <p class="text-xs text-slate-500 mt-1">Accede a tus mascotas y citas en {{ business.name }}</p>
         </div>
 
-        <a href="/accounts/google/login/" class="w-full py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-headline font-bold text-sm transition flex items-center justify-center gap-3">
-            <span class="inline-flex w-5 h-5 rounded-full bg-white border border-slate-200 items-center justify-center text-xs font-black text-blue-600">G</span>
-            <span>Continuar con Google</span>
-        </a>
-
-        <div class="my-6 flex items-center gap-3">
-            <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-xs font-semibold text-slate-400 uppercase">o usa tu usuario</span>
-            <div class="h-px flex-1 bg-slate-200"></div>
+        <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="rounded-2xl border border-teal-100 bg-teal-50/70 p-3">
+                <div class="flex items-center gap-2 font-bold text-[#00685f] mb-1">
+                    <span class="material-symbols-outlined text-base">person</span>
+                    Cliente
+                </div>
+                <p class="text-slate-600">Agenda citas, registra mascotas, paga y revisa el seguimiento.</p>
+            </div>
+            <div class="rounded-2xl border border-amber-100 bg-amber-50/80 p-3">
+                <div class="flex items-center gap-2 font-bold text-amber-800 mb-1">
+                    <span class="material-symbols-outlined text-base">admin_panel_settings</span>
+                    Administrador
+                </div>
+                <p class="text-slate-600">Gestiona citas, pagos, servicios y el avance de cada mascota.</p>
+            </div>
         </div>
 
+        {% if business.google_login_enabled %}
+            <a href="/accounts/google/login/" class="w-full py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-headline font-bold text-sm transition flex items-center justify-center gap-3">
+                <span class="inline-flex w-5 h-5 rounded-full bg-white border border-slate-200 items-center justify-center text-xs font-black text-blue-600">G</span>
+                <span>Continuar con Google</span>
+            </a>
+
+            <div class="my-6 flex items-center gap-3">
+                <div class="h-px flex-1 bg-slate-200"></div>
+                <span class="text-xs font-semibold text-slate-400 uppercase">o usa tu usuario</span>
+                <div class="h-px flex-1 bg-slate-200"></div>
+            </div>
+        {% endif %}
+
+        {% if business.show_demo_accounts %}
         <div class="mb-6 p-3.5 rounded-2xl bg-teal-50/80 border border-teal-100 text-xs text-slate-700">
             <span class="font-bold text-[#00685f] block mb-1">Cuentas demo para probar:</span>
             <ul class="space-y-0.5 text-slate-600">
@@ -31,6 +51,7 @@
                 <li>- <b>Admin:</b> usuario: <code class="bg-white px-1 py-0.5 rounded text-teal-800 font-mono">admin</code> / clave: <code class="bg-white px-1 py-0.5 rounded text-teal-800 font-mono">admin123</code></li>
             </ul>
         </div>
+        {% endif %}
 
         <form method="post" class="space-y-4">
             {% csrf_token %}

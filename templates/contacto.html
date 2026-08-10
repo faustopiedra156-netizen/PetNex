@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 
-{% block title %}Contacto - PetCare Loja{% endblock %}
+{% block title %}Contacto - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <section>
             <span class="text-xs font-bold text-[#00685f] uppercase tracking-widest bg-teal-50 px-3 py-1 rounded-full border border-teal-100">Contacto</span>
-            <h1 class="font-headline font-black text-3xl sm:text-4xl text-slate-900 mt-3">Estamos listos para atender a tu mascota</h1>
+            <h1 class="font-headline font-black text-3xl sm:text-4xl text-slate-900 mt-3">{{ business.contact_title }}</h1>
             <p class="text-slate-600 mt-3 text-sm leading-relaxed">
-                Escríbenos para consultar disponibilidad, servicios especiales o cuidados antes de una cita.
+                {{ business.contact_description }}
             </p>
 
             <div class="mt-8 grid gap-4">
@@ -17,28 +17,28 @@
                     <span class="material-symbols-outlined text-[#00685f]">call</span>
                     <div>
                         <h2 class="font-headline font-bold text-slate-900">Teléfono / WhatsApp</h2>
-                        <p class="text-sm text-slate-600">{{ contact_phone }}</p>
+                        <p class="text-sm text-slate-600">{{ business.phone }}</p>
                     </div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4">
                     <span class="material-symbols-outlined text-[#00685f]">schedule</span>
                     <div>
                         <h2 class="font-headline font-bold text-slate-900">Horario</h2>
-                        <p class="text-sm text-slate-600">Lunes a sábado, 08:30 - 18:30</p>
+                        <p class="text-sm text-slate-600">{{ business.opening_hours }}</p>
                     </div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4">
                     <span class="material-symbols-outlined text-[#00685f]">mail</span>
                     <div>
                         <h2 class="font-headline font-bold text-slate-900">Correo</h2>
-                        <p class="text-sm text-slate-600">{{ contact_email }}</p>
+                        <p class="text-sm text-slate-600">{{ business.email }}</p>
                     </div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4">
                     <span class="material-symbols-outlined text-[#00685f]">location_on</span>
                     <div>
                         <h2 class="font-headline font-bold text-slate-900">Dirección</h2>
-                        <p class="text-sm text-slate-600">{{ contact_address }}</p>
+                        <p class="text-sm text-slate-600">{{ business.address }}</p>
                     </div>
                 </div>
             </div>

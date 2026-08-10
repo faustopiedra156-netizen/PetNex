@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Pagar Cita - PetCare Loja{% endblock %}
+{% block title %}Pagar Cita - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-5xl mx-auto px-4 sm:px-6">
@@ -10,13 +10,14 @@
             <h1 class="font-headline font-black text-2xl text-slate-900 mt-2">Cita #{{ cita.id }}</h1>
             <div class="mt-5 space-y-3 text-sm">
                 <p class="flex justify-between gap-3"><span class="text-slate-500">Mascota</span><span class="font-bold text-slate-900">{{ cita.mascota.nombre }}</span></p>
+                <p class="flex justify-between gap-3"><span class="text-slate-500">Sucursal</span><span class="font-bold text-slate-900 text-right">{{ cita.sucursal.nombre }}</span></p>
                 <p class="flex justify-between gap-3"><span class="text-slate-500">Servicio</span><span class="font-bold text-slate-900 text-right">{{ cita.servicio.nombre }}</span></p>
                 <p class="flex justify-between gap-3"><span class="text-slate-500">Fecha</span><span class="font-bold text-slate-900">{{ cita.fecha|date:"d M Y" }}</span></p>
                 <p class="flex justify-between gap-3"><span class="text-slate-500">Hora</span><span class="font-bold text-slate-900">{{ cita.hora|time:"H:i" }}</span></p>
             </div>
             <div class="mt-6 pt-5 border-t border-slate-200 flex justify-between items-end">
                 <span class="text-slate-500 text-sm">Total</span>
-                <span class="font-headline font-black text-3xl text-[#00685f]">${{ cita.servicio.precio }}</span>
+                <span class="font-headline font-black text-3xl text-[#00685f]">{{ business.currency_symbol }}{{ cita.servicio.precio }}</span>
             </div>
         </section>
 
@@ -25,7 +26,7 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h2 class="font-headline font-black text-xl text-slate-900">Tarjeta de débito o crédito</h2>
-                        <p class="text-sm text-slate-500 mt-1">Visa, Mastercard y otras marcas mediante Datafast.</p>
+                        <p class="text-sm text-slate-500 mt-1">Visa, Mastercard y otras marcas mediante el proveedor de pagos configurado.</p>
                     </div>
                     <span class="material-symbols-outlined text-[#00685f]">credit_card</span>
                 </div>
@@ -39,7 +40,7 @@
                     </form>
                 {% else %}
                     <div class="mt-5 rounded-2xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-                        Falta configurar credenciales de Datafast para activar pagos reales con tarjeta.
+                        Falta configurar las credenciales del proveedor de pagos para activar pagos reales con tarjeta.
                     </div>
                 {% endif %}
             </div>

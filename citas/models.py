@@ -1,6 +1,77 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+
+class ConfiguracionNegocio(models.Model):
+    nombre = models.CharField(max_length=120, default='PetCare Loja')
+    nombre_corto = models.CharField(max_length=80, default='PetCare')
+    ciudad = models.CharField(max_length=80, default='Loja')
+    pais = models.CharField(max_length=80, default='Ecuador')
+    codigo_pais = models.CharField(max_length=2, default='EC')
+    categoria = models.CharField(max_length=120, default='peluqueria y estetica para mascotas')
+    slogan = models.CharField(max_length=160, default='Cuidado profesional para mascotas')
+    hero_badge = models.CharField(max_length=180, default='Peluqueria y estetica para mascotas')
+    hero_titulo = models.CharField(max_length=180, default='Bano, corte y carino para tu mascota.')
+    hero_descripcion = models.TextField(default='Servicios de higiene y cuidado estetico con atencion personalizada.')
+    contacto_titulo = models.CharField(max_length=180, default='Estamos listos para atender a tu mascota')
+    contacto_descripcion = models.TextField(default='Escribenos para consultar disponibilidad, servicios especiales o cuidados antes de una cita.')
+    descripcion_footer = models.TextField(default='Centro especializado en estetica, peluqueria y spa para mascotas.')
+    email = models.EmailField(default='contacto@negocio.com')
+    telefono = models.CharField(max_length=30, default='+593 99 999 9999')
+    direccion = models.CharField(max_length=180, default='Direccion del local')
+    horario = models.CharField(max_length=120, default='Lun - Sab: 08:30 - 18:30')
+    moneda = models.CharField(max_length=10, default='USD')
+    simbolo_moneda = models.CharField(max_length=5, default='$')
+    etiqueta_resenas = models.CharField(max_length=80, default='Resenas de clientes')
+    etiqueta_ubicacion = models.CharField(max_length=80, default='Centro')
+    texto_boton_principal = models.CharField(max_length=80, default='Agendar cita')
+    prefijo_transaccion = models.CharField(max_length=30, default='NEGOCIO')
+    mostrar_cuentas_demo = models.BooleanField(default=False)
+    google_login_activo = models.BooleanField(default=False)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuracion del negocio"
+        verbose_name_plural = "Configuracion del negocio"
+
+    def __str__(self):
+        return self.nombre
+
+    @classmethod
+    def actual(cls):
+        config = cls.objects.order_by('id').first()
+        return config
+
+    def as_business_dict(self):
+        return {
+            'app_name': 'PetNexo',
+            'name': self.nombre,
+            'short_name': self.nombre_corto,
+            'city': self.ciudad,
+            'country': self.pais,
+            'country_code': self.codigo_pais,
+            'category': self.categoria,
+            'tagline': self.slogan,
+            'hero_badge': self.hero_badge,
+            'hero_title': self.hero_titulo,
+            'hero_description': self.hero_descripcion,
+            'contact_title': self.contacto_titulo,
+            'contact_description': self.contacto_descripcion,
+            'footer_description': self.descripcion_footer,
+            'email': self.email,
+            'phone': self.telefono,
+            'address': self.direccion,
+            'opening_hours': self.horario,
+            'currency': self.moneda,
+            'currency_symbol': self.simbolo_moneda,
+            'review_label': self.etiqueta_resenas,
+            'location_label': self.etiqueta_ubicacion,
+            'primary_cta': self.texto_boton_principal,
+            'show_demo_accounts': self.mostrar_cuentas_demo,
+            'google_login_enabled': self.google_login_activo,
+            'transaction_prefix': self.prefijo_transaccion,
+        }
+
 class Servicio(models.Model):
     CATEGORIAS = [
         ('peluqueria', 'Peluquería & Estética'),
@@ -25,6 +96,23 @@ class Servicio(models.Model):
 
     def __str__(self):
         return f"{self.nombre} (${self.precio})"
+
+
+class Sucursal(models.Model):
+    nombre = models.CharField(max_length=120, verbose_name="Nombre de la sucursal")
+    ciudad = models.CharField(max_length=80, verbose_name="Ciudad")
+    direccion = models.CharField(max_length=180, verbose_name="Direccion")
+    telefono = models.CharField(max_length=30, blank=True, verbose_name="Telefono")
+    activa = models.BooleanField(default=True, verbose_name="Activa")
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Sucursal"
+        verbose_name_plural = "Sucursales"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.nombre} - {self.ciudad}"
 
 
 class Mascota(models.Model):
@@ -87,6 +175,7 @@ class Cita(models.Model):
     ]
 
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='citas', verbose_name="Cliente")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name='citas', verbose_name="Sucursal")
     mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='citas', verbose_name="Mascota")
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE, related_name='citas', verbose_name="Servicio Requerido")
     fecha = models.DateField(verbose_name="Fecha de Atención")

@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}Catálogo de Servicios - PetCare Loja{% endblock %}
+{% block title %}Catalogo de Servicios - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="mb-10 text-center max-w-3xl mx-auto">
-        <h1 class="font-headline font-black text-3xl sm:text-4xl text-slate-900 mb-3">Catálogo de Servicios & Estética Canina</h1>
+        <h1 class="font-headline font-black text-3xl sm:text-4xl text-slate-900 mb-3">Catalogo de servicios</h1>
         <p class="text-slate-600 text-base">
-            Descubre todos los tratamientos profesionales que ofrecemos en PetCare Loja. Precios transparentes y atención personalizada para cada peludo.
+            Descubre los tratamientos profesionales que ofrece {{ business.name }}. Precios transparentes y atencion personalizada para cada mascota.
         </p>
     </div>
 
@@ -33,8 +33,8 @@
                             <span class="material-symbols-outlined text-2xl">{{ servicio.icono }}</span>
                         </span>
                         <div class="text-right">
-                            <span class="font-headline font-black text-2xl text-[#00685f] block">${{ servicio.precio }}</span>
-                            <span class="text-xs text-slate-400 font-medium">USD</span>
+                            <span class="font-headline font-black text-2xl text-[#00685f] block">{{ business.currency_symbol }}{{ servicio.precio }}</span>
+                            <span class="text-xs text-slate-400 font-medium">{{ business.currency }}</span>
                         </div>
                     </div>
 

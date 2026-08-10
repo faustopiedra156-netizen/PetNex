@@ -1,6 +1,6 @@
-# PetCare Loja - Django desde cero
+# Sistema Django para peluqueria y estetica de mascotas
 
-Proyecto web para la peluqueria canina PetCare Loja, desarrollado solo con Django, plantillas HTML y estilos por CDN. No usa React, Vite ni Node.
+Proyecto web parametrizable para locales de peluqueria, spa y estetica de mascotas, desarrollado solo con Django, plantillas HTML y estilos por CDN. No usa React, Vite ni Node.
 
 ## Funciones incluidas
 
@@ -92,8 +92,37 @@ Tambien puedes configurar los datos de transferencia:
 ```powershell
 $env:TRANSFER_BANK_NAME="Banco Pichincha"
 $env:TRANSFER_ACCOUNT_NUMBER="0000000000"
-$env:TRANSFER_ACCOUNT_OWNER="PetCare Loja"
+$env:TRANSFER_ACCOUNT_OWNER="Nombre del negocio"
 $env:TRANSFER_ACCOUNT_ID="0000000000000"
+```
+
+## Parametrizar el negocio
+
+La identidad del local se configura desde `.env`, sin editar templates:
+
+```env
+BUSINESS_NAME=Nombre del local
+BUSINESS_SHORT_NAME=Nombre corto
+BUSINESS_CITY=Ciudad
+BUSINESS_COUNTRY=Pais
+BUSINESS_COUNTRY_CODE=EC
+BUSINESS_CATEGORY=peluqueria y estetica para mascotas
+BUSINESS_TAGLINE=Cuidado profesional para mascotas
+BUSINESS_HERO_BADGE=Peluqueria y estetica para mascotas en Ciudad, Pais
+BUSINESS_HERO_TITLE=Bano, corte y carino para tu mascota.
+BUSINESS_HERO_DESCRIPTION=Descripcion comercial del local
+BUSINESS_FOOTER_DESCRIPTION=Descripcion breve para el pie de pagina
+BUSINESS_CONTACT_EMAIL=contacto@negocio.com
+BUSINESS_CONTACT_PHONE=+593 99 999 9999
+BUSINESS_ADDRESS=Direccion del local
+BUSINESS_OPENING_HOURS=Lun - Sab: 08:30 - 18:30
+BUSINESS_CURRENCY=USD
+BUSINESS_CURRENCY_SYMBOL=$
+BUSINESS_REVIEW_LABEL=Resenas de clientes
+BUSINESS_LOCATION_LABEL=Sector del local
+BUSINESS_PRIMARY_CTA=Agendar cita
+BUSINESS_SHOW_DEMO_ACCOUNTS=False
+BUSINESS_TRANSACTION_PREFIX=NEGOCIO
 ```
 
 ## Despliegue en produccion

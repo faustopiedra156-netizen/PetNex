@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Calificar Servicio - PetCare Loja{% endblock %}
+{% block title %}Calificar Servicio - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-5xl mx-auto px-4 sm:px-6">
@@ -12,6 +12,10 @@
                 <p class="flex justify-between gap-3">
                     <span class="text-slate-500">Servicio</span>
                     <span class="font-bold text-slate-900 text-right">{{ cita.servicio.nombre }}</span>
+                </p>
+                <p class="flex justify-between gap-3">
+                    <span class="text-slate-500">Sucursal</span>
+                    <span class="font-bold text-slate-900 text-right">{{ cita.sucursal.nombre }}</span>
                 </p>
                 <p class="flex justify-between gap-3">
                     <span class="text-slate-500">Fecha</span>

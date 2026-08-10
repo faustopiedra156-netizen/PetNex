@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Crear Cuenta - PetCare Loja{% endblock %}
+{% block title %}Crear Cuenta - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-md mx-auto px-4">
@@ -38,6 +38,16 @@
             </div>
 
             <div>
+                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Telefono / WhatsApp</label>
+                {{ form.telefono }}
+            </div>
+
+            <div>
+                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Direccion de referencia</label>
+                {{ form.direccion }}
+            </div>
+
+            <div>
                 <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Contraseña *</label>
                 {{ form.password }}
             </div>
@@ -61,7 +71,7 @@
         </form>
 
         <div class="mt-6 text-center text-xs text-slate-500">
-            ¿Ya tienes cuenta en PetCare Loja?
+            Ya tienes cuenta en {{ business.name }}?
             <a href="{% url 'login' %}" class="text-[#00685f] font-bold hover:underline">Inicia sesión</a>
         </div>
     </div>

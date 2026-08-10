@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuracion del negocio - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="py-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-bold uppercase">
+                <span class="material-symbols-outlined text-sm">tune</span>
+                Configuracion
+            </span>
+            <h1 class="font-headline font-black text-3xl text-slate-900 mt-3">Datos del local</h1>
+            <p class="text-sm text-slate-500">Estos datos alimentan el encabezado, inicio, contacto, pagos y correos.</p>
+        </div>
+        <a href="{% url 'gestion_admin' %}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50">
+            Volver al panel
+        </a>
+    </div>
+
+    <form method="post" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
+        {% csrf_token %}
+
+        {% for group in grouped_fields %}
+        <section>
+            <h2 class="font-headline font-black text-xl text-slate-900 mb-4">{{ group.title }}</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in group.fields %}
+                    <label class="block {% if field.name == 'hero_descripcion' or field.name == 'descripcion_footer' %}md:col-span-2{% endif %}">
+                        <span class="block text-xs font-bold text-slate-600 mb-1">{{ field.label }}</span>
+                        {{ field }}
+                        {% if field.errors %}<span class="text-xs text-red-600">{{ field.errors.0 }}</span>{% endif %}
+                    </label>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+
+        <section>
+            <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Opciones</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                    {{ form.mostrar_cuentas_demo }}
+                    <span class="text-sm font-semibold text-slate-700">Mostrar cuentas demo en login</span>
+                </label>
+                <label class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                    {{ form.google_login_activo }}
+                    <span class="text-sm font-semibold text-slate-700">Mostrar boton de Google login</span>
+                </label>
+            </div>
+        </section>
+
+        <div class="flex justify-end">
+            <button class="px-6 py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800">
+                Guardar configuracion
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

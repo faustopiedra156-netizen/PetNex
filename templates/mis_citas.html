@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Mis Citas - PetCare Loja{% endblock %}
+{% block title %}Mis Citas - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -30,9 +30,13 @@
                             </div>
                             <p class="text-slate-700 font-semibold text-sm mb-2 flex items-center gap-1">
                                 <span class="material-symbols-outlined text-base text-[#00685f]">content_cut</span>
-                                {{ cita.servicio.nombre }} • ${{ cita.servicio.precio }}
+                                {{ cita.servicio.nombre }} - {{ business.currency_symbol }}{{ cita.servicio.precio }}
                             </p>
                             <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                                <span class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">storefront</span>
+                                    {{ cita.sucursal.nombre }}
+                                </span>
                                 <span class="flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">calendar_today</span>
                                     {{ cita.fecha|date:"D d M Y" }}

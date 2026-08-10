@@ -1,27 +1,33 @@
-from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from citas.models import Servicio, Mascota, PerfilCliente, Cita
 import datetime
 
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+
+from citas.models import Cita, Mascota, PerfilCliente, Servicio, Sucursal
+
+
 class Command(BaseCommand):
-    help = 'Crea datos iniciales de prueba para PetCare Loja'
+    help = 'Crea datos iniciales de prueba para el negocio configurado'
 
     def handle(self, *args, **options):
-        # 1. Admin Superuser
         if not User.objects.filter(username='admin').exists():
-            admin_user = User.objects.create_superuser('admin', 'admin@petcareloja.ec', 'admin123')
+            admin_user = User.objects.create_superuser(
+                'admin',
+                f"admin@{settings.BUSINESS_SHORT_NAME.lower().replace(' ', '')}.local",
+                'admin123',
+            )
             admin_user.first_name = 'Administrador'
-            admin_user.last_name = 'Loja'
+            admin_user.last_name = settings.BUSINESS_CITY
             admin_user.save()
             self.stdout.write(self.style.SUCCESS('Superusuario admin / admin123 creado.'))
         else:
             admin_user = User.objects.get(username='admin')
 
-        # 2. Demo Customer
         if not User.objects.filter(username='juanperez').exists():
             cliente = User.objects.create_user('juanperez', 'juan@ejemplo.ec', 'cliente123')
             cliente.first_name = 'Juan'
-            cliente.last_name = 'Pérez'
+            cliente.last_name = 'Perez'
             cliente.save()
             self.stdout.write(self.style.SUCCESS('Cliente demo juanperez / cliente123 creado.'))
         else:
@@ -30,18 +36,27 @@ class Command(BaseCommand):
         PerfilCliente.objects.get_or_create(
             usuario=cliente,
             defaults={
-                'telefono': '+593 99 123 4567',
-                'direccion': 'Av. Universitaria y 10 de Agosto',
-                'barrio': 'Centro de Loja',
+                'telefono': settings.BUSINESS_CONTACT_PHONE,
+                'direccion': settings.BUSINESS_ADDRESS,
+                'barrio': settings.BUSINESS_LOCATION_LABEL,
                 'contacto_preferido': 'whatsapp',
-            }
+            },
         )
 
-        # 3. Servicios Iniciales
+        sucursal, _ = Sucursal.objects.get_or_create(
+            nombre=f"{settings.BUSINESS_SHORT_NAME} Principal",
+            defaults={
+                'ciudad': settings.BUSINESS_CITY,
+                'direccion': settings.BUSINESS_ADDRESS,
+                'telefono': settings.BUSINESS_CONTACT_PHONE,
+                'activa': True,
+            },
+        )
+
         servicios_data = [
             {
-                'nombre': 'Baño & Spa Canino Pro',
-                'descripcion': 'Baño relajante con champú hipoalergénico, secado profesional con aire tibio, cepillado de manto, limpieza de oídos y corte de uñas.',
+                'nombre': 'Bano y spa para mascotas',
+                'descripcion': 'Bano relajante con shampoo hipoalergenico, secado profesional, cepillado, limpieza de oidos y corte de unas.',
                 'categoria': 'bano',
                 'precio': 18.00,
                 'duracion_minutos': 45,
@@ -49,8 +64,8 @@ class Command(BaseCommand):
                 'destacado': True,
             },
             {
-                'nombre': 'Corte de Raza & Estilo',
-                'descripcion': 'Corte especializado según estándar de raza o estilo comercial a tijera/máquina, despunte, acabado impecable y perfume suave.',
+                'nombre': 'Corte de raza y estilo',
+                'descripcion': 'Corte especializado segun raza o estilo comercial, acabado prolijo y perfume suave.',
                 'categoria': 'peluqueria',
                 'precio': 25.00,
                 'duracion_minutos': 60,
@@ -58,8 +73,8 @@ class Command(BaseCommand):
                 'destacado': True,
             },
             {
-                'nombre': 'Peluquería Integral Completa',
-                'descripcion': 'Servicio VIP que incluye baño nutritivo, mascarilla de keratina, corte de pelo completo, vaciado de glándulas y pedicura canina.',
+                'nombre': 'Peluqueria integral completa',
+                'descripcion': 'Servicio completo con bano nutritivo, corte, limpieza, pedicura y acabado estetico.',
                 'categoria': 'peluqueria',
                 'precio': 32.00,
                 'duracion_minutos': 75,
@@ -67,8 +82,8 @@ class Command(BaseCommand):
                 'destacado': True,
             },
             {
-                'nombre': 'Higiénico & Limpieza de Oídos',
-                'descripcion': 'Recorte de zonas higiénicas (plantares, vientre y zona perianal) más limpieza profunda y desinfección de conducto auditivo.',
+                'nombre': 'Higiene y limpieza de oidos',
+                'descripcion': 'Recorte de zonas higienicas, limpieza de oidos y cuidados basicos de higiene.',
                 'categoria': 'salud',
                 'precio': 12.00,
                 'duracion_minutos': 30,
@@ -76,8 +91,8 @@ class Command(BaseCommand):
                 'destacado': False,
             },
             {
-                'nombre': 'Tratamiento Deslanado Profundo',
-                'descripcion': 'Técnica especial para razas de doble capa (Husky, Golden, Pastor) que retira hasta el 90% del pelo muerto reduciendo caídas.',
+                'nombre': 'Tratamiento deslanado',
+                'descripcion': 'Tecnica para retirar pelo muerto y reducir caida en mascotas con manto abundante.',
                 'categoria': 'especial',
                 'precio': 28.00,
                 'duracion_minutos': 60,
@@ -85,8 +100,8 @@ class Command(BaseCommand):
                 'destacado': False,
             },
             {
-                'nombre': 'Pedicura & Limpieza Dental',
-                'descripcion': 'Corte y limado de uñas sin dolor más cepillado dental enzimático con spray refrescante de aliento.',
+                'nombre': 'Pedicura y limpieza dental',
+                'descripcion': 'Corte y limado de unas, mas cepillado dental con producto especializado.',
                 'categoria': 'salud',
                 'precio': 10.00,
                 'duracion_minutos': 20,
@@ -95,13 +110,12 @@ class Command(BaseCommand):
             },
         ]
 
-        for s_data in servicios_data:
-            Servicio.objects.get_or_create(nombre=s_data['nombre'], defaults=s_data)
+        for servicio_data in servicios_data:
+            Servicio.objects.get_or_create(nombre=servicio_data['nombre'], defaults=servicio_data)
 
-        self.stdout.write(self.style.SUCCESS('Servicios del catálogo registrados.'))
+        self.stdout.write(self.style.SUCCESS('Servicios del catalogo registrados.'))
 
-        # 4. Mascotas de Prueba
-        m1, _ = Mascota.objects.get_or_create(
+        mascota_1, _ = Mascota.objects.get_or_create(
             propietario=cliente,
             nombre='Toby',
             defaults={
@@ -109,12 +123,12 @@ class Command(BaseCommand):
                 'raza': 'Schnauzer Miniatura',
                 'edad': 3,
                 'peso_kg': 6.5,
-                'notas_medicas': 'Piel algo sensible, usar champú neutro.',
+                'notas_medicas': 'Piel sensible, usar shampoo neutro.',
                 'foto_url': 'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=500&q=80',
-            }
+            },
         )
 
-        m2, _ = Mascota.objects.get_or_create(
+        mascota_2, _ = Mascota.objects.get_or_create(
             propietario=cliente,
             nombre='Luna',
             defaults={
@@ -124,14 +138,13 @@ class Command(BaseCommand):
                 'peso_kg': 26.0,
                 'notas_medicas': 'Requiere deslanado de temporada.',
                 'foto_url': 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=500&q=80',
-            }
+            },
         )
 
         self.stdout.write(self.style.SUCCESS('Mascotas de prueba registradas.'))
 
-        # 5. Citas de Prueba
-        s_corte = Servicio.objects.filter(nombre__icontains='Corte').first()
-        s_bano = Servicio.objects.filter(nombre__icontains='Baño').first()
+        servicio_corte = Servicio.objects.filter(nombre__icontains='Corte').first()
+        servicio_bano = Servicio.objects.filter(nombre__icontains='Bano').first()
 
         hoy = datetime.date.today()
         manana = hoy + datetime.timedelta(days=1)
@@ -139,25 +152,27 @@ class Command(BaseCommand):
 
         if not Cita.objects.filter(propietario=cliente).exists():
             Cita.objects.create(
+                sucursal=sucursal,
                 propietario=cliente,
-                mascota=m1,
-                servicio=s_corte or Servicio.objects.first(),
+                mascota=mascota_1,
+                servicio=servicio_corte or Servicio.objects.first(),
                 fecha=manana,
                 hora=datetime.time(10, 0),
                 estado='CONFIRMADA',
-                notas='Favor mantener las barbas tradicionales de Schnauzer.'
+                notas='Favor mantener el estilo tradicional.',
             )
 
             Cita.objects.create(
+                sucursal=sucursal,
                 propietario=cliente,
-                mascota=m2,
-                servicio=s_bano or Servicio.objects.first(),
+                mascota=mascota_2,
+                servicio=servicio_bano or Servicio.objects.first(),
                 fecha=pasado,
                 hora=datetime.time(15, 30),
                 estado='PENDIENTE',
-                notas='Atender con cuidado en oídos.'
+                notas='Atender con cuidado en oidos.',
             )
 
             self.stdout.write(self.style.SUCCESS('Citas iniciales creadas.'))
 
-        self.stdout.write(self.style.SUCCESS('¡Base de datos cargada exitosamente para PetCare Loja!'))
+        self.stdout.write(self.style.SUCCESS(f'Base de datos cargada exitosamente para {settings.BUSINESS_NAME}.'))

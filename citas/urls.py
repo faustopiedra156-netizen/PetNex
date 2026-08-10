@@ -6,6 +6,7 @@ urlpatterns = [
     path('servicios/', views.servicios_view, name='servicios'),
     path('contacto/', views.contacto_view, name='contacto'),
     path('citas/agendar/', views.agendar_cita_view, name='agendar_cita'),
+    path('citas/disponibilidad/', views.disponibilidad_horarios_view, name='disponibilidad_horarios'),
     path('citas/mis-citas/', views.mis_citas_view, name='mis_citas'),
     path('citas/<int:cita_id>/calificar/', views.calificar_cita_view, name='calificar_cita'),
     path('citas/<int:cita_id>/pagar/', views.pagar_cita_view, name='pagar_cita'),
@@ -20,6 +21,7 @@ urlpatterns = [
     
     # Admin / Staff
     path('gestion/', views.gestion_admin_view, name='gestion_admin'),
+    path('gestion/configuracion/', views.configuracion_negocio_view, name='configuracion_negocio'),
     path('gestion/cita/<int:cita_id>/estado/', views.cambiar_estado_cita_view, name='cambiar_estado_cita'),
     path('gestion/cita/<int:cita_id>/pago/', views.actualizar_pago_cita_view, name='actualizar_pago_cita'),
     path('gestion/cita/<int:cita_id>/seguimiento/', views.actualizar_seguimiento_cita_view, name='actualizar_seguimiento_cita'),

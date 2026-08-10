@@ -1,11 +1,22 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Mascota, PerfilCliente, Cita, Servicio, Calificacion
+from .models import Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio, Sucursal
 import datetime
 
 HORA_APERTURA = datetime.time(8, 30)
 HORA_CIERRE = datetime.time(18, 30)
 MINUTOS_PERMITIDOS = {0, 30}
+
+
+def generar_horarios():
+    horarios = []
+    hora = datetime.datetime.combine(datetime.date.today(), HORA_APERTURA)
+    cierre = datetime.datetime.combine(datetime.date.today(), HORA_CIERRE)
+    while hora <= cierre:
+        value = hora.time().strftime('%H:%M')
+        horarios.append((value, value))
+        hora += datetime.timedelta(minutes=30)
+    return horarios
 
 
 class MascotaForm(forms.ModelForm):
@@ -26,12 +37,13 @@ class MascotaForm(forms.ModelForm):
 class CitaForm(forms.ModelForm):
     class Meta:
         model = Cita
-        fields = ['mascota', 'servicio', 'fecha', 'hora', 'notas']
+        fields = ['sucursal', 'mascota', 'servicio', 'fecha', 'hora', 'notas']
         widgets = {
+            'sucursal': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition'}),
             'mascota': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition'}),
             'servicio': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition'}),
             'fecha': forms.DateInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'type': 'date'}),
-            'hora': forms.TimeInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'type': 'time'}),
+            'hora': forms.HiddenInput(attrs={'id': 'id_hora'}),
             'notas': forms.Textarea(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'rows': 2, 'placeholder': 'Requerimientos especiales para el baño o corte...'}),
         }
 
@@ -39,8 +51,14 @@ class CitaForm(forms.ModelForm):
         self.user = user
         super().__init__(*args, **kwargs)
         if user and user.is_authenticated:
-            self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).only('nombre', 'raza')
+            self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).select_related('propietario').only('nombre', 'raza', 'propietario__username', 'propietario__first_name', 'propietario__last_name')
+        self.fields['sucursal'].queryset = Sucursal.objects.filter(activa=True).only('nombre', 'ciudad', 'direccion')
         self.fields['servicio'].queryset = Servicio.objects.filter(activo=True).only('nombre', 'precio')
+        self.fields['sucursal'].error_messages['required'] = "Selecciona la sucursal donde se atendera la mascota."
+        self.fields['mascota'].error_messages['required'] = "Selecciona una mascota registrada."
+        self.fields['servicio'].error_messages['required'] = "Selecciona el servicio que deseas reservar."
+        self.fields['fecha'].error_messages['required'] = "Selecciona la fecha de atencion."
+        self.fields['hora'].error_messages['required'] = "Selecciona una hora disponible en la agenda."
 
     def clean_fecha(self):
         fecha = self.cleaned_data['fecha']
@@ -62,12 +80,13 @@ class CitaForm(forms.ModelForm):
         cleaned_data = super().clean()
         fecha = cleaned_data.get('fecha')
         hora = cleaned_data.get('hora')
-        if fecha and hora:
-            existe = Cita.objects.filter(fecha=fecha, hora=hora).exclude(estado='CANCELADA')
+        sucursal = cleaned_data.get('sucursal')
+        if sucursal and fecha and hora:
+            existe = Cita.objects.filter(sucursal=sucursal, fecha=fecha, hora=hora).exclude(estado='CANCELADA')
             if self.instance and self.instance.pk:
                 existe = existe.exclude(pk=self.instance.pk)
             if existe.exists():
-                raise forms.ValidationError("Ese horario ya está ocupado. Elige otra hora.")
+                raise forms.ValidationError("Ese horario ya esta ocupado en la sucursal seleccionada. Elige otra hora.")
         return cleaned_data
 
 
@@ -129,6 +148,45 @@ class ServicioForm(forms.ModelForm):
         }
 
 
+class ConfiguracionNegocioForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionNegocio
+        fields = [
+            'nombre', 'nombre_corto', 'ciudad', 'pais', 'codigo_pais', 'categoria',
+            'slogan', 'hero_badge', 'hero_titulo', 'hero_descripcion', 'contacto_titulo', 'contacto_descripcion', 'descripcion_footer',
+            'email', 'telefono', 'direccion', 'horario', 'moneda', 'simbolo_moneda',
+            'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal',
+            'prefijo_transaccion', 'mostrar_cuentas_demo', 'google_login_activo',
+        ]
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'nombre_corto': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'ciudad': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'pais': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'codigo_pais': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'maxlength': '2'}),
+            'categoria': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'slogan': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'hero_badge': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'hero_titulo': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'hero_descripcion': forms.Textarea(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'rows': 3}),
+            'contacto_titulo': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'contacto_descripcion': forms.Textarea(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'rows': 3}),
+            'descripcion_footer': forms.Textarea(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'rows': 3}),
+            'email': forms.EmailInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'telefono': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'direccion': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'horario': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'moneda': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'simbolo_moneda': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'etiqueta_resenas': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'etiqueta_ubicacion': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'texto_boton_principal': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'prefijo_transaccion': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'mostrar_cuentas_demo': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
+            'google_login_activo': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
+        }
+
+
 class CalificacionForm(forms.ModelForm):
     class Meta:
         model = Calificacion
@@ -144,6 +202,8 @@ class CalificacionForm(forms.ModelForm):
 
 
 class RegistroForm(forms.ModelForm):
+    telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': '+593 99 999 9999'}))
+    direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Direccion de referencia'}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Contraseña'}))
     confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Confirmar Contraseña'}))
 

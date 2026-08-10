@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}PetCare Loja - Cuidado Profesional Canino{% endblock %}</title>
+    <title>{% block title %}{{ business.app_name }} - {{ business.tagline }}{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
     <link rel="shortcut icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
     <meta name="theme-color" content="#00685f">
@@ -63,8 +63,8 @@
                         <span class="material-symbols-outlined text-2xl">pets</span>
                     </div>
                     <div>
-                        <span class="font-headline font-extrabold text-xl tracking-tight text-[#00685f] block leading-none">PetCare</span>
-                        <span class="text-xs font-semibold tracking-widest text-teal-600 uppercase">Loja • Ecuador</span>
+                        <span class="font-headline font-extrabold text-xl tracking-tight text-[#00685f] block leading-none">{{ business.short_name }}</span>
+                        <span class="text-xs font-semibold tracking-widest text-teal-600 uppercase">{{ business.city }} - {{ business.country }}</span>
                     </div>
                 </a>
 
@@ -94,6 +94,11 @@
                                 {{ user.first_name|default:user.username|slice:":1" }}
                             </span>
                             <span>{{ user.first_name|default:user.username }}</span>
+                            {% if user.is_staff or user.is_superuser %}
+                                <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black">Admin</span>
+                            {% else %}
+                                <span class="px-2 py-0.5 rounded-full bg-white text-[#00685f] font-black">Cliente</span>
+                            {% endif %}
                         </div>
                         <a href="{% url 'logout' %}" class="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition" title="Cerrar Sesión">
                             <span class="material-symbols-outlined text-xl">logout</span>
@@ -166,14 +171,16 @@
                         <div class="w-10 h-10 rounded-xl bg-[#00685f] flex items-center justify-center text-white font-bold">
                             <span class="material-symbols-outlined text-2xl">pets</span>
                         </div>
-                        <span class="font-headline font-bold text-xl text-white">PetCare Loja</span>
+                        <span class="font-headline font-bold text-xl text-white">{{ business.name }}</span>
                     </div>
                     <p class="text-slate-400 text-sm leading-relaxed mb-4">
-                        Centro especializado en estética, peluquería y spa canino profesional. Cuidamos a tu mejor amigo con amor y el máximo estándar de higiene en Loja.
+                        {{ business.footer_description }}
                     </p>
                     <div class="flex gap-3">
-                        <span class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-teal-400 text-sm">📍</span>
-                        <span class="text-xs text-slate-400">Av. Universitaria, Loja, Ecuador</span>
+                        <span class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-teal-400 text-sm">
+                            <span class="material-symbols-outlined text-base">location_on</span>
+                        </span>
+                        <span class="text-xs text-slate-400">{{ business.address }}</span>
                     </div>
                 </div>
 
@@ -205,22 +212,22 @@
                     <div class="space-y-3 text-sm text-slate-400">
                         <p class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-teal-400 text-base">schedule</span>
-                            <span>Lun - Sáb: 08:30 - 18:30</span>
+                            <span>{{ business.opening_hours }}</span>
                         </p>
                         <p class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-teal-400 text-base">call</span>
-                            <span>+593 98 3298707</span>
+                            <span>{{ business.phone }}</span>
                         </p>
                         <p class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-teal-400 text-base">mail</span>
-                            <span>Petcare@gmail.com</span>
+                            <span>{{ business.email }}</span>
                         </p>
                     </div>
                 </div>
             </div>
 
             <div class="pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
-                <p>© 2026 PetCare Loja  Todos los derechos reservados.</p>
+                <p>&copy; 2026 {{ business.name }}. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>

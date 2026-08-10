@@ -1,15 +1,19 @@
 import re
+import datetime
 
 import requests
 from django.conf import settings
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
-from django.db.models import Sum, Count, Q
-from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm
+from django.db.models import Sum, Count, Q, Avg
+from django.utils import timezone
+from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm
+from .services import obtener_configuracion_negocio, enviar_notificacion
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
 PROGRESO_POR_ETAPA = {
@@ -32,6 +36,16 @@ ESCALA_CALIFICACION = [
 DATAFAST_RESULT_OK_PATTERN = re.compile(r'^(000\.000\.|000\.100\.1|000\.[36])')
 
 
+def generar_horarios_disponibilidad():
+    horarios = []
+    hora = datetime.datetime.combine(datetime.date.today(), datetime.time(8, 30))
+    cierre = datetime.datetime.combine(datetime.date.today(), datetime.time(18, 30))
+    while hora <= cierre:
+        horarios.append(hora.time())
+        hora += datetime.timedelta(minutes=30)
+    return horarios
+
+
 def es_staff(user):
     return user.is_staff or user.is_superuser
 
@@ -44,10 +58,11 @@ def redirect_si_no_staff(request):
 
 
 def datos_transferencia():
+    negocio = obtener_configuracion_negocio()
     return {
         'banco': settings.TRANSFER_BANK_NAME,
         'cuenta': settings.TRANSFER_ACCOUNT_NUMBER,
-        'titular': settings.TRANSFER_ACCOUNT_OWNER,
+        'titular': settings.TRANSFER_ACCOUNT_OWNER or negocio['name'],
         'identificacion': settings.TRANSFER_ACCOUNT_ID,
     }
 
@@ -67,14 +82,20 @@ def home_view(request):
     servicios_todos = Servicio.objects.filter(activo=True).only(
         'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
     )[:6]
-    total_mascotas = Mascota.objects.count()
-    total_citas = Cita.objects.filter(estado='ATENDIDA').count()
+    mascotas_atendidas = Cita.objects.filter(estado='ATENDIDA').values('mascota_id').distinct().count()
+    total_citas_operativas = Cita.objects.exclude(estado='CANCELADA').count()
+    citas_atendidas = Cita.objects.filter(estado='ATENDIDA').count()
+    tasa_atencion = round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0
+    resumen_resenas = Calificacion.objects.aggregate(promedio=Avg('puntuacion'), total=Count('id'))
+    promedio_resenas = resumen_resenas['promedio'] or 0
     
     context = {
         'servicios_destacados': servicios_destacados,
         'servicios_todos': servicios_todos,
-        'total_mascotas': total_mascotas,
-        'total_citas': total_citas,
+        'mascotas_atendidas': mascotas_atendidas,
+        'tasa_atencion': tasa_atencion,
+        'promedio_resenas': round(promedio_resenas, 1),
+        'total_resenas': resumen_resenas['total'],
     }
     return render(request, 'home.html', context)
 
@@ -100,11 +121,35 @@ def contacto_view(request):
     if request.method == 'POST':
         messages.success(request, "Mensaje recibido. Te responderemos por WhatsApp o correo lo antes posible.")
         return redirect('contacto')
-    return render(request, 'contacto.html', {
-        'contact_phone': settings.PETCARE_CONTACT_PHONE,
-        'contact_email': settings.PETCARE_CONTACT_EMAIL,
-        'contact_address': settings.PETCARE_ADDRESS,
-    })
+    return render(request, 'contacto.html')
+
+
+@login_required
+def disponibilidad_horarios_view(request):
+    sucursal_id = request.GET.get('sucursal')
+    fecha = request.GET.get('fecha')
+    if not sucursal_id or not fecha:
+        return JsonResponse({'horarios': []})
+
+    try:
+        fecha_obj = datetime.date.fromisoformat(fecha)
+    except ValueError:
+        return JsonResponse({'horarios': []}, status=400)
+
+    ocupadas = set(
+        Cita.objects.filter(
+            sucursal_id=sucursal_id,
+            fecha=fecha_obj,
+        ).exclude(estado='CANCELADA').values_list('hora', flat=True)
+    )
+    horarios = [
+        {
+            'hora': hora.strftime('%H:%M'),
+            'ocupado': hora in ocupadas,
+        }
+        for hora in generar_horarios_disponibilidad()
+    ]
+    return JsonResponse({'horarios': horarios})
 
 
 @login_required
@@ -126,7 +171,18 @@ def agendar_cita_view(request):
             cita = form.save(commit=False)
             cita.propietario = request.user
             cita.save()
-            messages.success(request, f"Cita agendada para {cita.mascota.nombre} en {cita.servicio.nombre} el {cita.fecha}. Te contactaremos para confirmar.")
+            negocio = obtener_configuracion_negocio()
+            enviar_notificacion(
+                f"Nueva cita en {negocio['name']}",
+                f"Hola {request.user.first_name or request.user.username}, tu cita para {cita.mascota.nombre} fue registrada en {cita.sucursal.nombre} para el {cita.fecha} a las {cita.hora}.",
+                [request.user.email],
+            )
+            enviar_notificacion(
+                f"Nueva cita #{cita.id}",
+                f"{cita.sucursal.nombre} - {cita.mascota.nombre} - {cita.servicio.nombre} - {cita.fecha} {cita.hora}. Cliente: {request.user.get_full_name() or request.user.username}",
+                [settings.ADMIN_NOTIFICATION_EMAIL],
+            )
+            messages.success(request, f"Cita agendada para {cita.mascota.nombre} en {cita.sucursal.nombre} el {cita.fecha}. Te contactaremos para confirmar.")
             return redirect('mis_citas')
         else:
             messages.error(request, "Por favor revisa los campos ingresados.")
@@ -146,7 +202,7 @@ def agendar_cita_view(request):
 
 @login_required
 def mis_citas_view(request):
-    citas = Cita.objects.select_related('mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
+    citas = Cita.objects.select_related('sucursal', 'mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
     context = {
         'citas': citas,
     }
@@ -172,7 +228,7 @@ def calificar_cita_view(request, cita_id):
             nueva_calificacion.cita = cita
             nueva_calificacion.cliente = request.user
             nueva_calificacion.save()
-            messages.success(request, "Gracias por calificar el servicio de PetCare.")
+            messages.success(request, f"Gracias por calificar el servicio de {obtener_configuracion_negocio()['name']}.")
             return redirect('mis_citas')
     else:
         form = CalificacionForm(instance=calificacion)
@@ -222,7 +278,7 @@ def pagar_cita_view(request, cita_id):
             cita.estado_pago = 'ABONADO'
             cita.referencia_pago = referencia
             cita.save()
-            messages.success(request, "Transferencia registrada. PetCare confirmará el pago en el panel administrativo.")
+            messages.success(request, f"Transferencia registrada. {obtener_configuracion_negocio()['name']} confirmara el pago en el panel administrativo.")
             return redirect('mis_citas')
 
         if metodo_pago == 'EFECTIVO':
@@ -260,19 +316,20 @@ def pagar_cita_view(request, cita_id):
 def crear_checkout_datafast(request, cita):
     url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
     user = request.user
+    negocio = obtener_configuracion_negocio()
     amount = f"{float(cita.servicio.precio):.2f}"
     data = {
         'entityId': settings.DATAFAST_ENTITY_ID,
         'amount': amount,
-        'currency': 'USD',
+        'currency': negocio['currency'],
         'paymentType': 'DB',
-        'merchantTransactionId': f"PETCARE-CITA-{cita.id}",
-        'customer.email': user.email or 'cliente@petcareloja.ec',
+        'merchantTransactionId': f"{negocio['transaction_prefix']}-CITA-{cita.id}",
+        'customer.email': user.email or negocio['email'],
         'customer.givenName': user.first_name or user.username,
         'customer.surname': user.last_name or 'Cliente',
-        'billing.street1': getattr(getattr(user, 'perfil_cliente', None), 'direccion', '') or 'Loja',
-        'billing.city': 'Loja',
-        'billing.country': 'EC',
+        'billing.street1': getattr(getattr(user, 'perfil_cliente', None), 'direccion', '') or negocio['city'],
+        'billing.city': negocio['city'],
+        'billing.country': negocio['country_code'],
     }
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
@@ -365,7 +422,7 @@ def nueva_mascota_view(request):
             mascota = form.save(commit=False)
             mascota.propietario = request.user
             mascota.save()
-            messages.success(request, f"{mascota.nombre} fue registrado con éxito en PetCare Loja.")
+            messages.success(request, f"{mascota.nombre} fue registrado con exito en {obtener_configuracion_negocio()['name']}.")
             
             # If user came from booking flow, redirect back to agendar
             if request.GET.get('next') == 'agendar':
@@ -419,32 +476,85 @@ def gestion_admin_view(request):
 
     estado_filtro = request.GET.get('estado', 'TODOS')
     if estado_filtro and estado_filtro != 'TODOS':
-        citas = Cita.objects.select_related('propietario', 'mascota', 'servicio').filter(estado=estado_filtro).order_by('-fecha', '-hora')
+        citas = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(estado=estado_filtro).order_by('-fecha', '-hora')
     else:
-        citas = Cita.objects.select_related('propietario', 'mascota', 'servicio').all().order_by('-fecha', '-hora')
+        citas = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').all().order_by('-fecha', '-hora')
+
+    sucursal_filtro = request.GET.get('sucursal', 'TODAS')
+    if sucursal_filtro and sucursal_filtro != 'TODAS' and sucursal_filtro.isdigit():
+        citas = citas.filter(sucursal_id=sucursal_filtro)
 
     servicios = Servicio.objects.only('nombre', 'precio', 'duracion_minutos', 'activo')
+    sucursales = Sucursal.objects.filter(activa=True).only('nombre', 'ciudad')
+    hoy = timezone.localdate()
+    inicio_mes = hoy.replace(day=1)
     
-    # Stats
     resumen = Cita.objects.aggregate(
         total=Count('id'),
         pendientes=Count('id', filter=Q(estado='PENDIENTE')),
         confirmadas=Count('id', filter=Q(estado='CONFIRMADA')),
         atendidas=Count('id', filter=Q(estado='ATENDIDA')),
+        hoy=Count('id', filter=Q(fecha=hoy)),
+        pagos_pendientes=Count('id', filter=Q(estado_pago__in=['PENDIENTE', 'ABONADO'])),
     )
     ingresos = Cita.objects.filter(estado='ATENDIDA').aggregate(total=Sum('servicio__precio'))['total'] or 0
+    ingresos_mes = Cita.objects.filter(estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('servicio__precio'))['total'] or 0
+    promedio_calificacion = Calificacion.objects.aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
+    citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(fecha=hoy).order_by('sucursal__nombre', 'hora')[:8]
 
     context = {
         'citas': citas,
         'servicios': servicios,
+        'sucursales': sucursales,
+        'citas_hoy': citas_hoy,
         'estado_filtro': estado_filtro,
+        'sucursal_filtro': sucursal_filtro,
         'total_citas': resumen['total'],
         'pendientes': resumen['pendientes'],
         'confirmadas': resumen['confirmadas'],
         'atendidas': resumen['atendidas'],
+        'citas_de_hoy': resumen['hoy'],
+        'pagos_pendientes': resumen['pagos_pendientes'],
         'ingresos': ingresos,
+        'ingresos_mes': ingresos_mes,
+        'promedio_calificacion': round(promedio_calificacion, 1),
     }
     return render(request, 'gestion.html', context)
+
+
+@login_required
+def configuracion_negocio_view(request):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+
+    config, _ = ConfiguracionNegocio.objects.get_or_create(id=1)
+    if request.method == 'POST':
+        form = ConfiguracionNegocioForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Configuracion del negocio actualizada.")
+            return redirect('configuracion_negocio')
+    else:
+        form = ConfiguracionNegocioForm(instance=config)
+
+    field_groups = [
+        ('Identidad', ['nombre', 'nombre_corto', 'ciudad', 'pais', 'codigo_pais', 'categoria', 'slogan']),
+        ('Pagina publica', ['hero_badge', 'hero_titulo', 'hero_descripcion', 'contacto_titulo', 'contacto_descripcion', 'descripcion_footer', 'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal']),
+        ('Contacto y operacion', ['email', 'telefono', 'direccion', 'horario', 'moneda', 'simbolo_moneda', 'prefijo_transaccion']),
+    ]
+    grouped_fields = [
+        {
+            'title': title,
+            'fields': [form[field_name] for field_name in field_names],
+        }
+        for title, field_names in field_groups
+    ]
+
+    return render(request, 'configuracion_negocio.html', {
+        'form': form,
+        'grouped_fields': grouped_fields,
+    })
 
 
 @login_required
@@ -458,6 +568,11 @@ def cambiar_estado_cita_view(request, cita_id):
     if nuevo_estado in ['PENDIENTE', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA']:
         cita.estado = nuevo_estado
         cita.save()
+        enviar_notificacion(
+            f"Estado de cita actualizado: {cita.get_estado_display()}",
+            f"La cita de {cita.mascota.nombre} en {cita.sucursal.nombre} para {cita.servicio.nombre} ahora esta en estado: {cita.get_estado_display()}.",
+            [cita.propietario.email],
+        )
         messages.success(request, f"Estado de cita #{cita.id} actualizado a '{cita.get_estado_display()}'.")
     
     return redirect('gestion_admin')
@@ -504,6 +619,11 @@ def actualizar_seguimiento_cita_view(request, cita_id):
         if etapa == 'ENTREGADA':
             cita.estado = 'ATENDIDA'
         cita.save()
+        enviar_notificacion(
+            f"Seguimiento actualizado: {cita.mascota.nombre}",
+            f"Etapa actual: {etapas_validas[etapa]}. Nota: {nota or 'Sin nota adicional.'}",
+            [cita.propietario.email],
+        )
         messages.success(request, f"Seguimiento de {cita.mascota.nombre} actualizado: {etapas_validas[etapa]}.")
     else:
         messages.error(request, "La etapa seleccionada no es válida.")
@@ -535,8 +655,13 @@ def registro_view(request):
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
             user.save()
+            PerfilCliente.objects.create(
+                usuario=user,
+                telefono=form.cleaned_data.get('telefono', ''),
+                direccion=form.cleaned_data.get('direccion', ''),
+            )
             login(request, user)
-            messages.success(request, f"Bienvenido a PetCare Loja, {user.first_name or user.username}.")
+            messages.success(request, f"Bienvenido a {obtener_configuracion_negocio()['name']}, {user.first_name or user.username}.")
             return redirect('home')
     else:
         form = RegistroForm()
@@ -558,6 +683,8 @@ def login_usuario_view(request):
                 login(request, user)
                 messages.success(request, f"Hola de nuevo, {user.first_name or user.username}.")
                 next_page = request.GET.get('next', 'home')
+                if next_page == 'home' and es_staff(user):
+                    return redirect('gestion_admin')
                 return redirect(next_page)
         else:
             messages.error(request, "Usuario o contraseña incorrectos.")
