@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.home_view, name='home'),
     path('servicios/', views.servicios_view, name='servicios'),
     path('contacto/', views.contacto_view, name='contacto'),
+    path('chatbot/', views.chatbot_view, name='chatbot'),
     path('citas/agendar/', views.agendar_cita_view, name='agendar_cita'),
     path('citas/disponibilidad/', views.disponibilidad_horarios_view, name='disponibilidad_horarios'),
     path('citas/mis-citas/', views.mis_citas_view, name='mis_citas'),

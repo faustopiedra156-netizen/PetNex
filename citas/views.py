@@ -124,6 +124,72 @@ def contacto_view(request):
     return render(request, 'contacto.html')
 
 
+def chatbot_view(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Metodo no permitido.'}, status=405)
+
+    mensaje = (request.POST.get('mensaje') or '').strip()
+    negocio = obtener_configuracion_negocio()
+    if not mensaje:
+        return JsonResponse({
+            'respuesta': 'Escribeme tu consulta y te ayudo con servicios, horarios, citas, pagos o seguimiento.'
+        })
+
+    texto = mensaje.lower()
+    servicios = list(
+        Servicio.objects.filter(activo=True).only(
+            'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos'
+        )[:6]
+    )
+
+    def lista_servicios():
+        if not servicios:
+            return 'Todavia no hay servicios activos cargados en el sistema.'
+        items = [
+            f"{servicio.nombre}: {negocio['currency_symbol']}{servicio.precio} aprox., {servicio.duracion_minutos} min"
+            for servicio in servicios
+        ]
+        return "Estos son algunos servicios disponibles: " + "; ".join(items) + "."
+
+    if any(palabra in texto for palabra in ['hola', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches']):
+        respuesta = (
+            f"Hola, soy el asistente de {negocio['name']}. "
+            "Puedo ayudarte con servicios, horarios, reservas, pagos y seguimiento de tu mascota."
+        )
+    elif any(palabra in texto for palabra in ['servicio', 'precio', 'costo', 'cuanto', 'baño', 'bano', 'corte', 'peluqueria']):
+        respuesta = lista_servicios() + " Para reservar, entra en Agendar Cita y elige mascota, servicio, fecha y hora."
+    elif any(palabra in texto for palabra in ['horario', 'hora', 'atienden', 'abren', 'cierran']):
+        respuesta = f"Nuestro horario de atencion es: {negocio['opening_hours']}. En la agenda veras solo horarios disponibles por sucursal."
+    elif any(palabra in texto for palabra in ['cita', 'reservar', 'agendar', 'turno']):
+        respuesta = (
+            "Para agendar una cita debes iniciar sesion, registrar tu mascota y seleccionar sucursal, servicio, fecha y hora. "
+            "Los horarios con check ya estan ocupados."
+        )
+    elif any(palabra in texto for palabra in ['pago', 'pagar', 'tarjeta', 'transferencia', 'efectivo', 'debito', 'credito']):
+        respuesta = (
+            "Puedes pagar una cita desde Mis Citas. El sistema contempla efectivo, transferencia y tarjeta, "
+            "segun la configuracion activa del negocio."
+        )
+    elif any(palabra in texto for palabra in ['seguimiento', 'estado', 'progreso', 'mascota', 'haciendo']):
+        respuesta = (
+            "El seguimiento se consulta en Mis Citas. El administrador actualiza la etapa de la mascota: recibida, baño, secado, corte, revision y lista para retirar."
+        )
+    elif any(palabra in texto for palabra in ['contacto', 'telefono', 'whatsapp', 'correo', 'direccion', 'ubicacion']):
+        respuesta = (
+            f"Puedes contactarnos al {negocio['phone']}, escribir a {negocio['email']} "
+            f"o visitarnos en {negocio['address']}."
+        )
+    elif any(palabra in texto for palabra in ['registro', 'cuenta', 'login', 'iniciar sesion']):
+        respuesta = "Puedes crear tu cuenta en Registrarse. Luego podras guardar mascotas, agendar citas y revisar pagos o seguimiento."
+    else:
+        respuesta = (
+            "Puedo ayudarte con servicios, precios, horarios, citas, pagos, contacto o seguimiento. "
+            "Prueba escribiendo: quiero agendar una cita, cuanto cuesta un baño, o como va mi mascota."
+        )
+
+    return JsonResponse({'respuesta': respuesta})
+
+
 @login_required
 def disponibilidad_horarios_view(request):
     sucursal_id = request.GET.get('sucursal')
