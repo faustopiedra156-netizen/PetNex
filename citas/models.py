@@ -1,5 +1,65 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+
+
+class PlanSuscripcion(models.Model):
+    nombre = models.CharField(max_length=80, unique=True, verbose_name="Nombre del plan")
+    precio_mensual = models.DecimalField(max_digits=7, decimal_places=2, default=0, verbose_name="Precio mensual")
+    max_sucursales = models.PositiveIntegerField(default=1, verbose_name="Maximo de sucursales")
+    max_citas_mes = models.PositiveIntegerField(default=100, verbose_name="Maximo de citas por mes")
+    permite_pagos = models.BooleanField(default=False, verbose_name="Permite pagos")
+    permite_chatbot = models.BooleanField(default=True, verbose_name="Permite chatbot")
+    permite_reportes = models.BooleanField(default=False, verbose_name="Permite reportes avanzados")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Plan de suscripcion"
+        verbose_name_plural = "Planes de suscripcion"
+        ordering = ['precio_mensual', 'nombre']
+
+    def __str__(self):
+        return f"{self.nombre} (${self.precio_mensual}/mes)"
+
+
+class SuscripcionNegocio(models.Model):
+    ESTADOS = [
+        ('ACTIVA', 'Activa'),
+        ('VENCIDA', 'Vencida'),
+        ('SUSPENDIDA', 'Suspendida'),
+        ('DEMO', 'Demo'),
+    ]
+
+    plan = models.ForeignKey(PlanSuscripcion, on_delete=models.PROTECT, related_name='suscripciones')
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='DEMO', verbose_name="Estado")
+    fecha_inicio = models.DateField(default=timezone.localdate, verbose_name="Fecha de inicio")
+    fecha_vencimiento = models.DateField(verbose_name="Fecha de vencimiento")
+    contacto_pago = models.CharField(max_length=120, blank=True, default='', verbose_name="Contacto para pago")
+    notas = models.TextField(blank=True, default='', verbose_name="Notas internas")
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Suscripcion del negocio"
+        verbose_name_plural = "Suscripcion del negocio"
+
+    def __str__(self):
+        return f"{self.plan.nombre} - {self.estado} hasta {self.fecha_vencimiento}"
+
+    @classmethod
+    def actual(cls):
+        return cls.objects.select_related('plan').order_by('id').first()
+
+    @property
+    def dias_restantes(self):
+        return (self.fecha_vencimiento - timezone.localdate()).days
+
+    @property
+    def esta_activa(self):
+        return self.estado in {'ACTIVA', 'DEMO'} and self.fecha_vencimiento >= timezone.localdate()
+
+    @property
+    def esta_por_vencer(self):
+        return self.esta_activa and self.dias_restantes <= 7
 
 
 class ConfiguracionNegocio(models.Model):

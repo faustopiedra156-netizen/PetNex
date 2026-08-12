@@ -23,6 +23,43 @@
         </a>
     </div>
 
+    {% if licencia_actual.suscripcion %}
+        <div class="rounded-3xl p-5 border mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4 {% if licencia_actual.activa %}bg-white border-slate-200{% else %}bg-red-50 border-red-200{% endif %}">
+            <div class="flex items-start gap-3">
+                <span class="w-11 h-11 rounded-2xl flex items-center justify-center {% if licencia_actual.activa %}bg-teal-50 text-[#00685f]{% else %}bg-red-100 text-red-700{% endif %}">
+                    <span class="material-symbols-outlined">workspace_premium</span>
+                </span>
+                <div>
+                    <p class="text-xs font-black uppercase tracking-wider {% if licencia_actual.activa %}text-[#00685f]{% else %}text-red-700{% endif %}">Licencia PetNexo</p>
+                    <h2 class="font-headline font-black text-xl text-slate-900">{{ licencia_actual.suscripcion.plan.nombre }} - {{ licencia_actual.suscripcion.get_estado_display }}</h2>
+                    <p class="text-sm text-slate-600">Vence el {{ licencia_actual.suscripcion.fecha_vencimiento|date:"d/m/Y" }}. Dias restantes: {{ licencia_actual.dias_restantes }}.</p>
+                    {% if licencia_actual.mensaje %}
+                        <p class="text-sm font-semibold mt-1 {% if licencia_actual.activa %}text-amber-800{% else %}text-red-700{% endif %}">{{ licencia_actual.mensaje }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 text-center text-xs">
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p class="font-black text-slate-900">{{ licencia_actual.suscripcion.plan.max_sucursales }}</p>
+                    <p class="text-slate-500">Sucursales</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p class="font-black text-slate-900">{{ licencia_actual.suscripcion.plan.max_citas_mes }}</p>
+                    <p class="text-slate-500">Citas/mes</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p class="font-black text-slate-900">{{ business.currency_symbol }}{{ licencia_actual.suscripcion.plan.precio_mensual }}</p>
+                    <p class="text-slate-500">Mensual</p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="rounded-3xl p-5 border border-sky-200 bg-sky-50 mb-8 text-sky-900">
+            <p class="font-headline font-bold">Licencia PetNexo sin configurar</p>
+            <p class="text-sm">Crea un plan y una suscripcion desde Django Admin para activar el control de pagos del software.</p>
+        </div>
+    {% endif %}
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">

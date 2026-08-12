@@ -13,7 +13,7 @@ from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal
 from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm
-from .services import obtener_configuracion_negocio, enviar_notificacion
+from .services import obtener_configuracion_negocio, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
 PROGRESO_POR_ETAPA = {
@@ -55,6 +55,11 @@ def redirect_si_no_staff(request):
         return None
     messages.error(request, "Acceso no autorizado.")
     return redirect('home')
+
+
+def licencia_bloqueada_para_operar(user):
+    licencia = estado_licencia()
+    return not licencia['activa'] and not user.is_superuser
 
 
 def datos_transferencia():
@@ -127,6 +132,10 @@ def contacto_view(request):
 def chatbot_view(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Metodo no permitido.'}, status=405)
+
+    licencia = estado_licencia()
+    if licencia['suscripcion'] and not licencia['suscripcion'].plan.permite_chatbot:
+        return JsonResponse({'respuesta': 'El chatbot no esta disponible en el plan actual.'}, status=403)
 
     mensaje = (request.POST.get('mensaje') or '').strip()
     negocio = obtener_configuracion_negocio()
@@ -220,6 +229,20 @@ def disponibilidad_horarios_view(request):
 
 @login_required
 def agendar_cita_view(request):
+    licencia = estado_licencia()
+    if not licencia['activa'] and not request.user.is_superuser:
+        messages.error(request, licencia['mensaje'])
+        return redirect('home')
+    if licencia['suscripcion'] and not request.user.is_superuser:
+        hoy = timezone.localdate()
+        citas_mes = Cita.objects.filter(
+            creado_en__year=hoy.year,
+            creado_en__month=hoy.month,
+        ).exclude(estado='CANCELADA').count()
+        if citas_mes >= licencia['suscripcion'].plan.max_citas_mes:
+            messages.error(request, "El plan actual alcanzo el limite de citas mensuales. Renueva o sube de plan para seguir agendando.")
+            return redirect('home')
+
     servicio_id = request.GET.get('servicio_id')
     servicio_preseleccionado = None
     if servicio_id:
@@ -321,6 +344,14 @@ def cancelar_cita_view(request, cita_id):
 
 @login_required
 def pagar_cita_view(request, cita_id):
+    licencia = estado_licencia()
+    if not licencia['activa'] and not request.user.is_superuser:
+        messages.error(request, licencia['mensaje'])
+        return redirect('mis_citas')
+    if licencia['suscripcion'] and not licencia['suscripcion'].plan.permite_pagos and not request.user.is_superuser:
+        messages.error(request, "Tu plan actual de PetNexo no incluye gestion de pagos.")
+        return redirect('mis_citas')
+
     cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
     if cita.estado == 'CANCELADA':
         messages.error(request, "No puedes pagar una cita cancelada.")
@@ -567,6 +598,7 @@ def gestion_admin_view(request):
     ingresos_mes = Cita.objects.filter(estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('servicio__precio'))['total'] or 0
     promedio_calificacion = Calificacion.objects.aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
     citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(fecha=hoy).order_by('sucursal__nombre', 'hora')[:8]
+    licencia = estado_licencia()
 
     context = {
         'citas': citas,
@@ -584,6 +616,7 @@ def gestion_admin_view(request):
         'ingresos': ingresos,
         'ingresos_mes': ingresos_mes,
         'promedio_calificacion': round(promedio_calificacion, 1),
+        'licencia_actual': licencia,
     }
     return render(request, 'gestion.html', context)
 
@@ -628,6 +661,9 @@ def cambiar_estado_cita_view(request, cita_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    if licencia_bloqueada_para_operar(request.user):
+        messages.error(request, estado_licencia()['mensaje'])
+        return redirect('gestion_admin')
 
     cita = get_object_or_404(Cita, id=cita_id)
     nuevo_estado = request.POST.get('nuevo_estado')
@@ -649,6 +685,9 @@ def actualizar_pago_cita_view(request, cita_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    if licencia_bloqueada_para_operar(request.user):
+        messages.error(request, estado_licencia()['mensaje'])
+        return redirect('gestion_admin')
 
     cita = get_object_or_404(Cita, id=cita_id)
     estado_pago = request.POST.get('estado_pago')
@@ -672,6 +711,9 @@ def actualizar_seguimiento_cita_view(request, cita_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    if licencia_bloqueada_para_operar(request.user):
+        messages.error(request, estado_licencia()['mensaje'])
+        return redirect('gestion_admin')
 
     cita = get_object_or_404(Cita, id=cita_id)
     etapa = request.POST.get('etapa_seguimiento')
@@ -702,6 +744,9 @@ def toggle_servicio_view(request, servicio_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    if licencia_bloqueada_para_operar(request.user):
+        messages.error(request, estado_licencia()['mensaje'])
+        return redirect('gestion_admin')
 
     servicio = get_object_or_404(Servicio, id=servicio_id)
     servicio.activo = not servicio.activo

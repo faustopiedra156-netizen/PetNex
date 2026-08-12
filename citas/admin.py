@@ -1,5 +1,22 @@
 from django.contrib import admin
-from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal
+from .models import (
+    Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
+    Sucursal, PlanSuscripcion, SuscripcionNegocio,
+)
+
+
+@admin.register(PlanSuscripcion)
+class PlanSuscripcionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'precio_mensual', 'max_sucursales', 'max_citas_mes', 'permite_pagos', 'permite_chatbot', 'activo')
+    list_filter = ('activo', 'permite_pagos', 'permite_chatbot', 'permite_reportes')
+    search_fields = ('nombre',)
+
+
+@admin.register(SuscripcionNegocio)
+class SuscripcionNegocioAdmin(admin.ModelAdmin):
+    list_display = ('plan', 'estado', 'fecha_inicio', 'fecha_vencimiento', 'dias_restantes', 'actualizado_en')
+    list_filter = ('estado', 'plan')
+    search_fields = ('plan__nombre', 'contacto_pago')
 
 
 @admin.register(ConfiguracionNegocio)

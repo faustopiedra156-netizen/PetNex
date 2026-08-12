@@ -42,6 +42,17 @@ CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
     'http://127.0.0.1:8081,http://localhost:8081,http://127.0.0.1:8080,http://localhost:8080',
 )
+
+if os.getenv('VERCEL'):
+    vercel_url = os.getenv('VERCEL_URL', '').strip()
+    ALLOWED_HOSTS.extend(['.vercel.app'])
+    CSRF_TRUSTED_ORIGINS.extend(['https://*.vercel.app'])
+    if vercel_url:
+        ALLOWED_HOSTS.append(vercel_url)
+        CSRF_TRUSTED_ORIGINS.append(f'https://{vercel_url}')
+
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 CSRF_FAILURE_VIEW = 'citas.views.csrf_failure'
 
 
