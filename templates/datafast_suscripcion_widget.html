@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Pago de Suscripcion - PetNexo{% endblock %}
+
+{% block content %}
+<div class="py-12 max-w-3xl mx-auto px-4 sm:px-6">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xl">
+        <div class="mb-6">
+            <p class="text-xs font-black uppercase tracking-wider text-[#00685f]">Pago seguro PetNexo</p>
+            <h1 class="font-headline font-black text-2xl text-slate-900 mt-1">Suscripcion {{ pago.plan.nombre }}</h1>
+            <p class="text-sm text-slate-500 mt-1">
+                Ciclo: <b>{{ pago.get_ciclo_facturacion_display }}</b> · Total:
+                <b>{{ business.currency_symbol }}{{ pago.monto }}</b>
+            </p>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-6">
+            <p class="text-sm text-slate-700">
+                Ingresa los datos de la tarjeta en el formulario seguro del proveedor. PetNexo no almacena numeros de tarjeta.
+            </p>
+        </div>
+
+        <script src="{{ datafast_base_url }}/v1/paymentWidgets.js?checkoutId={{ pago.checkout_id }}"></script>
+        <form action="{% url 'datafast_suscripcion_result' pago.id %}" class="paymentWidgets" data-brands="{{ datafast_brands }}"></form>
+    </div>
+</div>
+{% endblock %}

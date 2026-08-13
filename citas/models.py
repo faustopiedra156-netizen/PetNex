@@ -62,6 +62,48 @@ class SuscripcionNegocio(models.Model):
         return self.esta_activa and self.dias_restantes <= 7
 
 
+class PagoSuscripcion(models.Model):
+    CICLOS = [
+        ('MENSUAL', 'Mensual'),
+        ('ANUAL', 'Anual'),
+    ]
+    ESTADOS = [
+        ('PENDIENTE', 'Pendiente'),
+        ('APROBADO', 'Aprobado'),
+        ('RECHAZADO', 'Rechazado'),
+    ]
+
+    suscripcion = models.ForeignKey(
+        SuscripcionNegocio,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pagos',
+        verbose_name="Suscripcion",
+    )
+    plan = models.ForeignKey(PlanSuscripcion, on_delete=models.PROTECT, related_name='pagos', verbose_name="Plan")
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='pagos_suscripcion')
+    ciclo_facturacion = models.CharField(max_length=20, choices=CICLOS, default='MENSUAL')
+    monto = models.DecimalField(max_digits=8, decimal_places=2)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE')
+    metodo = models.CharField(max_length=20, default='TARJETA')
+    contacto_pago = models.CharField(max_length=120, blank=True, default='')
+    checkout_id = models.CharField(max_length=180, blank=True, default='')
+    datafast_resource_path = models.CharField(max_length=255, blank=True, default='')
+    datafast_result_code = models.CharField(max_length=60, blank=True, default='')
+    referencia = models.CharField(max_length=180, blank=True, default='')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Pago de suscripcion"
+        verbose_name_plural = "Pagos de suscripcion"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"{self.plan.nombre} {self.ciclo_facturacion} - {self.estado} (${self.monto})"
+
+
 class ConfiguracionNegocio(models.Model):
     nombre = models.CharField(max_length=120, default='PetCare Loja')
     nombre_corto = models.CharField(max_length=80, default='PetCare')

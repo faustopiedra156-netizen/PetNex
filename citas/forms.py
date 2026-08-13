@@ -1,6 +1,9 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio, Sucursal
+from .models import (
+    Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio,
+    Sucursal, SuscripcionNegocio,
+)
 import datetime
 
 HORA_APERTURA = datetime.time(8, 30)
@@ -184,6 +187,20 @@ class ConfiguracionNegocioForm(forms.ModelForm):
             'prefijo_transaccion': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
             'mostrar_cuentas_demo': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
             'google_login_activo': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
+        }
+
+
+class SuscripcionNegocioForm(forms.ModelForm):
+    class Meta:
+        model = SuscripcionNegocio
+        fields = ['plan', 'estado', 'fecha_inicio', 'fecha_vencimiento', 'contacto_pago', 'notas']
+        widgets = {
+            'plan': forms.Select(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'estado': forms.Select(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'type': 'date'}),
+            'fecha_vencimiento': forms.DateInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'type': 'date'}),
+            'contacto_pago': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'placeholder': 'WhatsApp o correo para renovacion'}),
+            'notas': forms.Textarea(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'rows': 3}),
         }
 
 

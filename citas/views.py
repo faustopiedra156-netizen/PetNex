@@ -1,5 +1,6 @@
 import re
 import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 import requests
 from django.conf import settings
@@ -9,9 +10,10 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
+from django.db import connection, DatabaseError, OperationalError, ProgrammingError
 from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
-from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal
+from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion
 from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm
 from .services import obtener_configuracion_negocio, enviar_notificacion, estado_licencia
 
@@ -80,19 +82,47 @@ def csrf_failure(request, reason=""):
     return render(request, 'csrf_error.html', {'reason': reason}, status=403)
 
 
+def health_check_view(request):
+    checks = {
+        'app': 'ok',
+        'database': 'unknown',
+        'migrations_hint': 'Ejecuta py manage.py migrate si la base de datos falla.',
+    }
+    status = 200
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+        checks['database'] = 'ok'
+    except DatabaseError as exc:
+        checks['database'] = 'error'
+        checks['error'] = str(exc)
+        status = 503
+    return JsonResponse(checks, status=status)
+
+
 def home_view(request):
-    servicios_destacados = Servicio.objects.filter(activo=True, destacado=True).only(
-        'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
-    )[:4]
-    servicios_todos = Servicio.objects.filter(activo=True).only(
-        'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
-    )[:6]
-    mascotas_atendidas = Cita.objects.filter(estado='ATENDIDA').values('mascota_id').distinct().count()
-    total_citas_operativas = Cita.objects.exclude(estado='CANCELADA').count()
-    citas_atendidas = Cita.objects.filter(estado='ATENDIDA').count()
-    tasa_atencion = round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0
-    resumen_resenas = Calificacion.objects.aggregate(promedio=Avg('puntuacion'), total=Count('id'))
-    promedio_resenas = resumen_resenas['promedio'] or 0
+    try:
+        servicios_destacados = Servicio.objects.filter(activo=True, destacado=True).only(
+            'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
+        )[:4]
+        servicios_todos = Servicio.objects.filter(activo=True).only(
+            'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
+        )[:6]
+        mascotas_atendidas = Cita.objects.filter(estado='ATENDIDA').values('mascota_id').distinct().count()
+        total_citas_operativas = Cita.objects.exclude(estado='CANCELADA').count()
+        citas_atendidas = Cita.objects.filter(estado='ATENDIDA').count()
+        tasa_atencion = round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0
+        resumen_resenas = Calificacion.objects.aggregate(promedio=Avg('puntuacion'), total=Count('id'))
+        promedio_resenas = resumen_resenas['promedio'] or 0
+        total_resenas = resumen_resenas['total']
+    except (OperationalError, ProgrammingError):
+        servicios_destacados = []
+        servicios_todos = []
+        mascotas_atendidas = 0
+        tasa_atencion = 0
+        promedio_resenas = 0
+        total_resenas = 0
     
     context = {
         'servicios_destacados': servicios_destacados,
@@ -100,18 +130,21 @@ def home_view(request):
         'mascotas_atendidas': mascotas_atendidas,
         'tasa_atencion': tasa_atencion,
         'promedio_resenas': round(promedio_resenas, 1),
-        'total_resenas': resumen_resenas['total'],
+        'total_resenas': total_resenas,
     }
     return render(request, 'home.html', context)
 
 
 def servicios_view(request):
     categoria = request.GET.get('categoria', 'todas')
-    servicios = Servicio.objects.filter(activo=True).only(
-        'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos', 'icono'
-    )
-    if categoria and categoria != 'todas':
-        servicios = servicios.filter(categoria=categoria)
+    try:
+        servicios = Servicio.objects.filter(activo=True).only(
+            'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos', 'icono'
+        )
+        if categoria and categoria != 'todas':
+            servicios = servicios.filter(categoria=categoria)
+    except (OperationalError, ProgrammingError):
+        servicios = []
 
     categorias = Servicio.CATEGORIAS
     context = {
@@ -145,11 +178,14 @@ def chatbot_view(request):
         })
 
     texto = mensaje.lower()
-    servicios = list(
-        Servicio.objects.filter(activo=True).only(
-            'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos'
-        )[:6]
-    )
+    try:
+        servicios = list(
+            Servicio.objects.filter(activo=True).only(
+                'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos'
+            )[:6]
+        )
+    except (OperationalError, ProgrammingError):
+        servicios = []
 
     def lista_servicios():
         if not servicios:
@@ -437,6 +473,42 @@ def crear_checkout_datafast(request, cita):
         return None
 
 
+def calcular_monto_suscripcion(plan, ciclo_facturacion):
+    if ciclo_facturacion == 'ANUAL':
+        return (plan.precio_mensual * Decimal('12') * Decimal('0.85')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return plan.precio_mensual.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def normalizar_ciclo_facturacion(valor):
+    return 'ANUAL' if str(valor).strip().upper() == 'ANUAL' else 'MENSUAL'
+
+
+def crear_checkout_suscripcion_datafast(request, pago):
+    url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
+    user = request.user
+    negocio = obtener_configuracion_negocio()
+    data = {
+        'entityId': settings.DATAFAST_ENTITY_ID,
+        'amount': f"{pago.monto:.2f}",
+        'currency': negocio['currency'],
+        'paymentType': 'DB',
+        'merchantTransactionId': f"{negocio['transaction_prefix']}-SUB-{pago.id}",
+        'customer.email': user.email or negocio['email'],
+        'customer.givenName': user.first_name or user.username,
+        'customer.surname': user.last_name or 'Administrador',
+        'billing.street1': negocio['address'],
+        'billing.city': negocio['city'],
+        'billing.country': negocio['country_code'],
+    }
+    headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
+    try:
+        response = requests.post(url, data=data, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response.json().get('id')
+    except requests.RequestException:
+        return None
+
+
 @login_required
 def datafast_widget_view(request, cita_id):
     cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
@@ -654,6 +726,139 @@ def configuracion_negocio_view(request):
         'form': form,
         'grouped_fields': grouped_fields,
     })
+
+
+@login_required
+def suscripcion_negocio_view(request):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+
+    planes = PlanSuscripcion.objects.filter(activo=True).order_by('precio_mensual', 'nombre')
+    plan_base = planes.first()
+    suscripcion = SuscripcionNegocio.actual()
+    if not suscripcion and plan_base:
+        suscripcion = SuscripcionNegocio.objects.create(
+            plan=plan_base,
+            estado='DEMO',
+            fecha_inicio=timezone.localdate(),
+            fecha_vencimiento=timezone.localdate() + datetime.timedelta(days=30),
+            contacto_pago='Administrador PetNexo',
+        )
+
+    return render(request, 'suscripcion_negocio.html', {
+        'planes': planes,
+        'suscripcion': suscripcion,
+        'estado': estado_licencia(),
+        'tarjeta_configurada': datafast_configurado(),
+    })
+
+
+@login_required
+def crear_pago_suscripcion_view(request):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+
+    if request.method != 'POST':
+        return redirect('suscripcion_negocio')
+
+    if not datafast_configurado():
+        messages.error(request, "Configura las credenciales Datafast de tu cuenta comercial para cobrar suscripciones con tarjeta.")
+        return redirect('suscripcion_negocio')
+
+    plan = get_object_or_404(PlanSuscripcion, id=request.POST.get('plan_id'), activo=True)
+    ciclo = normalizar_ciclo_facturacion(request.POST.get('ciclo_facturacion', 'MENSUAL'))
+    suscripcion = SuscripcionNegocio.actual()
+    contacto = request.POST.get('contacto_pago', '').strip() or request.user.email or request.user.username
+    pago = PagoSuscripcion.objects.create(
+        suscripcion=suscripcion,
+        plan=plan,
+        usuario=request.user,
+        ciclo_facturacion=ciclo,
+        monto=calcular_monto_suscripcion(plan, ciclo),
+        contacto_pago=contacto,
+    )
+
+    checkout_id = crear_checkout_suscripcion_datafast(request, pago)
+    if not checkout_id:
+        pago.estado = 'RECHAZADO'
+        pago.referencia = 'No se pudo crear checkout Datafast'
+        pago.save(update_fields=['estado', 'referencia', 'actualizado_en'])
+        messages.error(request, "No se pudo iniciar el pago seguro con tarjeta. Revisa tus credenciales Datafast.")
+        return redirect('suscripcion_negocio')
+
+    pago.checkout_id = checkout_id
+    pago.save(update_fields=['checkout_id', 'actualizado_en'])
+    return redirect('datafast_suscripcion_widget', pago_id=pago.id)
+
+
+@login_required
+def datafast_suscripcion_widget_view(request, pago_id):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+
+    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user)
+    if not pago.checkout_id:
+        messages.error(request, "Primero inicia el pago de la suscripcion.")
+        return redirect('suscripcion_negocio')
+
+    return render(request, 'datafast_suscripcion_widget.html', {
+        'pago': pago,
+        'datafast_base_url': settings.DATAFAST_BASE_URL,
+        'datafast_brands': settings.DATAFAST_BRANDS,
+    })
+
+
+@login_required
+def datafast_suscripcion_result_view(request, pago_id):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+
+    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user)
+    resource_path = request.GET.get('resourcePath', '')
+    if not resource_path:
+        messages.error(request, "No se recibio la respuesta del pago.")
+        return redirect('suscripcion_negocio')
+
+    url = f"{settings.DATAFAST_BASE_URL}{resource_path}"
+    params = {'entityId': settings.DATAFAST_ENTITY_ID}
+    headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        messages.error(request, "No se pudo verificar el pago con Datafast.")
+        return redirect('suscripcion_negocio')
+
+    result_code = payload.get('result', {}).get('code', '')
+    pago.datafast_resource_path = resource_path
+    pago.datafast_result_code = result_code
+    pago.referencia = payload.get('id', '')
+
+    if DATAFAST_RESULT_OK_PATTERN.match(result_code):
+        hoy = timezone.localdate()
+        dias = 365 if pago.ciclo_facturacion == 'ANUAL' else 30
+        suscripcion = pago.suscripcion or SuscripcionNegocio.actual()
+        if suscripcion:
+            suscripcion.plan = pago.plan
+            suscripcion.estado = 'ACTIVA'
+            suscripcion.fecha_inicio = hoy
+            suscripcion.fecha_vencimiento = hoy + datetime.timedelta(days=dias)
+            suscripcion.contacto_pago = pago.contacto_pago
+            suscripcion.notas = f"Pago Datafast aprobado: {pago.referencia}"
+            suscripcion.save()
+        pago.estado = 'APROBADO'
+        messages.success(request, "Pago aprobado. Tu plan PetNexo fue actualizado correctamente.")
+    else:
+        pago.estado = 'RECHAZADO'
+        messages.error(request, f"Pago no aprobado. Codigo Datafast: {result_code}")
+
+    pago.save()
+    return redirect('suscripcion_negocio')
 
 
 @login_required

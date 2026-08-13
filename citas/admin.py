@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
-    Sucursal, PlanSuscripcion, SuscripcionNegocio,
+    Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion,
 )
 
 
@@ -17,6 +17,14 @@ class SuscripcionNegocioAdmin(admin.ModelAdmin):
     list_display = ('plan', 'estado', 'fecha_inicio', 'fecha_vencimiento', 'dias_restantes', 'actualizado_en')
     list_filter = ('estado', 'plan')
     search_fields = ('plan__nombre', 'contacto_pago')
+
+
+@admin.register(PagoSuscripcion)
+class PagoSuscripcionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'plan', 'ciclo_facturacion', 'monto', 'estado', 'usuario', 'creado_en')
+    list_filter = ('estado', 'ciclo_facturacion', 'plan', 'metodo')
+    search_fields = ('usuario__username', 'usuario__email', 'contacto_pago', 'checkout_id', 'referencia')
+    readonly_fields = ('checkout_id', 'datafast_resource_path', 'datafast_result_code', 'referencia', 'creado_en', 'actualizado_en')
 
 
 @admin.register(ConfiguracionNegocio)

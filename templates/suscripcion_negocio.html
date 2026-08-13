@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+
+{% block title %}Mejora tu plan - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-[calc(100vh-5rem)] bg-[#f4f4f2]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex items-center justify-between mb-10">
+            <div class="flex items-center gap-3">
+                <span class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black uppercase">
+                    {{ user.first_name|default:user.username|slice:":1" }}{{ user.last_name|slice:":1" }}
+                </span>
+                <div>
+                    <p class="font-semibold text-sm text-slate-900">{{ user.first_name|default:user.username }}</p>
+                    <p class="text-xs text-slate-500">{% if suscripcion %}{{ suscripcion.plan.nombre }}{% else %}Gratis{% endif %}</p>
+                </div>
+            </div>
+            <button id="jumpToPlans" type="button" class="px-4 py-2 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                Mejorar el plan
+            </button>
+        </div>
+
+        <section id="plansView">
+            <div class="text-center mb-8">
+                <h1 class="font-headline font-semibold text-3xl text-slate-950">Mejora tu plan</h1>
+                <div class="mt-5 inline-grid grid-cols-2 rounded-2xl bg-slate-200/70 p-1 text-xs font-semibold text-slate-500 min-w-[280px]">
+                    <button id="billingMonthly" type="button" class="billing-toggle rounded-xl bg-white py-2 text-slate-900 shadow-sm" data-billing="monthly">Mensual</button>
+                    <button id="billingAnnual" type="button" class="billing-toggle rounded-xl py-2" data-billing="annual">Anual <span class="text-[#00685f]">-15%</span></button>
+                </div>
+            </div>
+
+            {% if suscripcion %}
+                <div class="max-w-2xl mx-auto mb-8 rounded-3xl bg-white border border-slate-200 px-5 py-4 flex items-center justify-between gap-4 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="w-11 h-11 rounded-2xl flex items-center justify-center {% if estado.activa %}bg-emerald-50 text-emerald-700{% else %}bg-red-50 text-red-700{% endif %}">
+                            <span class="material-symbols-outlined">workspace_premium</span>
+                        </span>
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-wider {% if estado.activa %}text-emerald-700{% else %}text-red-700{% endif %}">
+                                {% if estado.activa %}Licencia activa{% else %}Licencia no activa{% endif %}
+                            </p>
+                            <p class="font-headline font-black text-lg text-slate-950">{{ suscripcion.plan.nombre }}</p>
+                            <p class="text-xs text-slate-500">Vence el {{ suscripcion.fecha_vencimiento|date:"d/m/Y" }} · {{ estado.dias_restantes }} dias restantes</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'gestion_admin' %}" class="hidden sm:inline-flex px-4 py-2 rounded-full bg-slate-950 text-white text-xs font-bold hover:bg-slate-800">
+                        Panel
+                    </a>
+                </div>
+            {% endif %}
+
+            <div id="plansGrid" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5">
+                {% for plan in planes %}
+                    <article
+                        class="plan-card group rounded-3xl border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl cursor-pointer {% if forloop.counter == 2 %}bg-sky-50 border-sky-100{% elif suscripcion and suscripcion.plan_id == plan.id %}border-slate-300{% else %}border-slate-200{% endif %}"
+                        data-plan-id="{{ plan.id }}"
+                        data-plan-name="{{ plan.nombre }}"
+                        data-plan-price="{{ plan.precio_mensual }}"
+                        data-plan-annual="{{ plan.precio_mensual|floatformat:2 }}"
+                        data-plan-branches="{{ plan.max_sucursales }}"
+                        data-plan-appointments="{{ plan.max_citas_mes }}"
+                        data-current="{% if suscripcion and suscripcion.plan_id == plan.id %}true{% else %}false{% endif %}"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <p class="font-semibold text-sm text-slate-950">{{ plan.nombre }}</p>
+                            {% if forloop.counter == 2 %}
+                                <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black uppercase">Recomendado</span>
+                            {% elif suscripcion and suscripcion.plan_id == plan.id %}
+                                <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase">Actual</span>
+                            {% endif %}
+                        </div>
+
+                        <h2 class="font-headline font-semibold text-2xl text-slate-950 mt-6">
+                            {% if plan.precio_mensual == 0 %}Prueba PetNexo{% else %}Impulsa tu local{% endif %}
+                        </h2>
+                        <p class="text-sm text-slate-500 leading-relaxed mt-3 min-h-[48px]">
+                            {% if forloop.counter == 1 %}
+                                Gestion esencial para comenzar a organizar citas, mascotas y servicios.
+                            {% elif forloop.counter == 2 %}
+                                Mas capacidad, pagos y herramientas para operar un local en crecimiento.
+                            {% else %}
+                                Control avanzado para negocios con varias sucursales y mayor volumen.
+                            {% endif %}
+                        </p>
+
+                        <div class="mt-8 flex items-end gap-1">
+                            <span class="font-headline font-normal text-5xl tracking-normal text-slate-950">{{ business.currency_symbol }}<span class="plan-price">{{ plan.precio_mensual|floatformat:0 }}</span></span>
+                            <span class="plan-period text-sm text-slate-500 mb-2">/ mes</span>
+                        </div>
+                        <p class="annual-caption hidden text-xs text-[#00685f] font-bold mt-2">Pago anual con 15% de descuento</p>
+
+                        <button type="button" class="select-plan mt-5 w-full rounded-full py-3 text-sm font-bold transition {% if suscripcion and suscripcion.plan_id == plan.id %}border border-slate-200 text-slate-400 bg-white{% else %}bg-[#00685f] text-white hover:bg-teal-800{% endif %}">
+                            {% if suscripcion and suscripcion.plan_id == plan.id %}Tu plan actual{% else %}Cambiar a {{ plan.nombre }}{% endif %}
+                        </button>
+
+                        <ul class="mt-7 space-y-4 text-sm text-slate-700">
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">check_circle</span>{{ plan.max_sucursales }} sucursales</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">check_circle</span>{{ plan.max_citas_mes }} citas mensuales</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">{% if plan.permite_pagos %}credit_card{% else %}remove_circle{% endif %}</span>Pagos en sistema</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">{% if plan.permite_chatbot %}smart_toy{% else %}remove_circle{% endif %}</span>Chatbot de asistencia</li>
+                            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">{% if plan.permite_reportes %}monitoring{% else %}remove_circle{% endif %}</span>Reportes avanzados</li>
+                        </ul>
+                    </article>
+                {% empty %}
+                    <div class="md:col-span-2 rounded-3xl bg-sky-50 border border-sky-200 p-6 text-sky-900">
+                        <p class="font-headline font-bold">No hay planes activos configurados.</p>
+                        <p class="text-sm">Ejecuta las migraciones iniciales o crea planes desde el admin.</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="text-center mt-8">
+                <button id="showAllPlans" type="button" class="text-sm underline text-slate-900">Ver todos los planes</button>
+            </div>
+        </section>
+
+        <section id="checkoutView" class="hidden max-w-5xl mx-auto">
+            <button id="backToPlans" type="button" class="inline-flex items-center gap-2 mb-8 text-slate-950 font-semibold">
+                <span class="material-symbols-outlined">arrow_back_ios_new</span>
+                Configura tu plan
+            </button>
+
+            <div class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-start">
+                <form method="post" action="{% url 'crear_pago_suscripcion' %}" class="space-y-5">
+                    {% csrf_token %}
+                    <input id="selectedPlanId" type="hidden" name="plan_id" value="">
+                    <input id="selectedBillingCycle" type="hidden" name="ciclo_facturacion" value="MENSUAL">
+
+                    <div>
+                        <p class="font-bold text-sm text-slate-950 mb-3">Pagar con</p>
+                        <button type="button" class="w-full h-11 rounded-xl bg-black text-white font-bold flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-lg">account_balance_wallet</span>
+                            Pago rapido
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-4 text-xs text-slate-400">
+                        <span class="h-px bg-slate-300 flex-1"></span>
+                        <span>o</span>
+                        <span class="h-px bg-slate-300 flex-1"></span>
+                    </div>
+
+                    <div class="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+                        <div class="flex items-start justify-between gap-4 mb-5">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-lg">credit_card</span>
+                                <p class="font-semibold text-sm text-slate-900">Tarjeta de credito o debito</p>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="px-1.5 py-0.5 rounded bg-blue-700 text-white text-[9px] font-black">VISA</span>
+                                <span class="px-1.5 py-0.5 rounded bg-slate-950 text-amber-400 text-[9px] font-black">MC</span>
+                                <span class="px-1.5 py-0.5 rounded bg-sky-600 text-white text-[9px] font-black">AMEX</span>
+                                <span class="px-1.5 py-0.5 rounded bg-cyan-700 text-white text-[9px] font-black">DINERS</span>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-900">Pago seguro con Datafast</p>
+                            <p class="text-xs text-slate-500 mt-1">Los datos de la tarjeta se ingresan en la pantalla segura del proveedor de pagos.</p>
+                        </div>
+                        {% if not tarjeta_configurada %}
+                            <p class="mt-4 text-xs font-semibold text-red-600">Faltan las credenciales Datafast para activar cobros reales con tarjeta.</p>
+                        {% endif %}
+                    </div>
+
+                    <input name="contacto_pago" type="text" class="w-full h-12 rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:ring-2 focus:ring-[#00685f]" placeholder="WhatsApp o correo para confirmar">
+                </form>
+
+                <aside class="rounded-3xl bg-white border border-slate-200 p-7 shadow-sm">
+                    <h2 class="font-headline font-semibold text-2xl text-slate-950">Plan <span id="selectedPlanName">Pro</span></h2>
+                    <p class="text-sm text-slate-500 mt-5 mb-4">Caracteristicas principales</p>
+                    <ul class="space-y-4 text-sm text-slate-800">
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">bolt</span>Gestion rapida de citas y clientes</li>
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">storefront</span><span id="selectedBranches">3</span> sucursales incluidas</li>
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">event_available</span><span id="selectedAppointments">500</span> citas mensuales</li>
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">smart_toy</span>Asistente para clientes</li>
+                        <li class="flex items-center gap-3"><span class="material-symbols-outlined text-[#00685f] text-lg">payments</span>Cobro seguro con tarjeta</li>
+                    </ul>
+
+                    <div class="border-t border-slate-200 mt-7 pt-5 space-y-3 text-sm">
+                        <div class="flex justify-between"><span id="selectedBillingLabel" class="text-slate-500">Suscripcion mensual</span><span>{{ business.currency_symbol }}<span id="selectedPlanPrice">45.00</span></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Impuesto estimado</span><span>{{ business.currency_symbol }}0.00</span></div>
+                        <div class="flex justify-between font-bold text-slate-950"><span>Monto a pagar hoy</span><span>{{ business.currency_symbol }}<span id="selectedPlanPriceTotal">45.00</span></span></div>
+                    </div>
+
+                    <button id="submitCheckout" type="button" class="mt-6 w-full h-12 rounded-full bg-black text-white font-bold hover:bg-slate-800">
+                        Continuar al pago seguro
+                    </button>
+                    <p class="text-[11px] leading-relaxed text-slate-500 mt-5">
+                        PetNexo no almacena numeros de tarjeta. El proveedor procesa el cobro y el plan se activa automaticamente cuando el pago sea aprobado.
+                    </p>
+                </aside>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const plansView = document.getElementById('plansView');
+        const checkoutView = document.getElementById('checkoutView');
+        const cards = document.querySelectorAll('.plan-card');
+        const selectedPlanId = document.getElementById('selectedPlanId');
+        const selectedPlanName = document.getElementById('selectedPlanName');
+        const selectedPlanPrice = document.getElementById('selectedPlanPrice');
+        const selectedPlanPriceTotal = document.getElementById('selectedPlanPriceTotal');
+        const selectedBillingCycle = document.getElementById('selectedBillingCycle');
+        const selectedBillingLabel = document.getElementById('selectedBillingLabel');
+        const selectedBranches = document.getElementById('selectedBranches');
+        const selectedAppointments = document.getElementById('selectedAppointments');
+        const backToPlans = document.getElementById('backToPlans');
+        const submitCheckout = document.getElementById('submitCheckout');
+        const jumpToPlans = document.getElementById('jumpToPlans');
+        const billingToggles = document.querySelectorAll('.billing-toggle');
+        let billingCycle = 'monthly';
+
+        function money(value) {
+            return Number(value).toFixed(2);
+        }
+
+        function annualPrice(monthly) {
+            return Number(monthly) * 12 * 0.85;
+        }
+
+        function priceForCycle(monthly) {
+            return billingCycle === 'annual' ? annualPrice(monthly) : Number(monthly);
+        }
+
+        function updatePlanCards() {
+            document.querySelectorAll('.plan-card').forEach(function (card) {
+                const price = priceForCycle(card.dataset.planPrice);
+                card.querySelector('.plan-price').textContent = billingCycle === 'annual' ? money(price) : Math.round(price);
+                card.querySelector('.plan-period').textContent = billingCycle === 'annual' ? '/ año' : '/ mes';
+                card.querySelector('.annual-caption').classList.toggle('hidden', billingCycle !== 'annual');
+            });
+        }
+
+        function updateBillingButtons() {
+            billingToggles.forEach(function (button) {
+                const active = button.dataset.billing === billingCycle;
+                button.classList.toggle('bg-white', active);
+                button.classList.toggle('text-slate-900', active);
+                button.classList.toggle('shadow-sm', active);
+            });
+        }
+
+        function selectPlan(card) {
+            selectedPlanId.value = card.dataset.planId;
+            selectedPlanName.textContent = card.dataset.planName;
+            const selectedPrice = money(priceForCycle(card.dataset.planPrice));
+            selectedPlanPrice.textContent = selectedPrice;
+            selectedPlanPriceTotal.textContent = selectedPrice;
+            selectedBillingCycle.value = billingCycle === 'annual' ? 'ANUAL' : 'MENSUAL';
+            selectedBillingLabel.textContent = billingCycle === 'annual' ? 'Suscripcion anual' : 'Suscripcion mensual';
+            selectedBranches.textContent = card.dataset.planBranches;
+            selectedAppointments.textContent = card.dataset.planAppointments;
+
+            plansView.classList.add('hidden');
+            checkoutView.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        cards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                selectPlan(card);
+            });
+        });
+
+        backToPlans.addEventListener('click', function () {
+            checkoutView.classList.add('hidden');
+            plansView.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        submitCheckout.addEventListener('click', function () {
+            const form = checkoutView.querySelector('form');
+            if (selectedPlanId.value) {
+                form.submit();
+            }
+        });
+
+        jumpToPlans.addEventListener('click', function () {
+            plansView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        billingToggles.forEach(function (button) {
+            button.addEventListener('click', function () {
+                billingCycle = button.dataset.billing;
+                updateBillingButtons();
+                updatePlanCards();
+            });
+        });
+
+        updateBillingButtons();
+        updatePlanCards();
+    });
+</script>
+{% endblock %}
