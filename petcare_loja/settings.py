@@ -172,6 +172,12 @@ LOGIN_URL = '/login/'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*']
+
+# Desactiva el inicio de sesión por código enviado al correo.
+# Para Google OAuth, el usuario debe entrar mediante el proveedor Google.
+ACCOUNT_LOGIN_BY_CODE_ENABLED = False
+ACCOUNT_LOGIN_BY_CODE_REQUIRED = False
+
 SOCIALACCOUNT_LOGIN_ON_GET = True
 
 SOCIALACCOUNT_PROVIDERS = {
