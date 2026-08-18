@@ -3,11 +3,23 @@ from django.core.mail import send_mail
 from django.db import OperationalError, ProgrammingError
 from django.utils import timezone
 
-from .models import ConfiguracionNegocio, SuscripcionNegocio
+from .models import ConfiguracionNegocio, Negocio, SuscripcionNegocio
 
 
-def obtener_configuracion_negocio():
-    config = ConfiguracionNegocio.actual()
+def obtener_negocio_usuario(user):
+    if not user or not getattr(user, 'is_authenticated', False):
+        return None
+    if user.is_superuser:
+        return None
+    return Negocio.objects.filter(propietario=user, activo=True).first()
+
+
+def obtener_negocio_publico():
+    return Negocio.objects.filter(activo=True).order_by('id').first()
+
+
+def obtener_configuracion_negocio(negocio=None):
+    config = ConfiguracionNegocio.actual(negocio=negocio)
     if config:
         return config.as_business_dict()
     return settings.BUSINESS_CONFIG
@@ -26,15 +38,15 @@ def enviar_notificacion(asunto, mensaje, destinatarios):
     )
 
 
-def obtener_suscripcion_negocio():
+def obtener_suscripcion_negocio(negocio=None):
     try:
-        return SuscripcionNegocio.actual()
+        return SuscripcionNegocio.actual(negocio=negocio)
     except (OperationalError, ProgrammingError):
         return None
 
 
-def estado_licencia():
-    suscripcion = obtener_suscripcion_negocio()
+def estado_licencia(negocio=None):
+    suscripcion = obtener_suscripcion_negocio(negocio=negocio)
     if not suscripcion:
         return {
             'existe': False,

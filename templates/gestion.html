@@ -8,16 +8,24 @@
         <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-xs mb-2">
                 <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
-                Modo Administrador
+                {% if user.is_superuser %}Dueño PetNexo{% else %}Administrador del local{% endif %}
             </div>
             <h1 class="font-headline font-black text-3xl text-slate-900">Panel de Control & Gestión de Citas</h1>
             <p class="text-slate-500 text-sm">Administra reservas, estados de atencion y catalogo de servicios de {{ business.name }}.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{% url 'suscripcion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-2">
-                <span class="material-symbols-outlined text-base">workspace_premium</span>
-                <span>Suscripcion</span>
-            </a>
+            {% if user.is_superuser %}
+                <a href="{% url 'cuentas_admin' %}" class="px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold text-xs transition flex items-center gap-2">
+                    <span class="material-symbols-outlined text-base">group_add</span>
+                    <span>Cuentas</span>
+                </a>
+            {% endif %}
+            {% if user.is_staff and not user.is_superuser %}
+                <a href="{% url 'suscripcion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-2">
+                    <span class="material-symbols-outlined text-base">workspace_premium</span>
+                    <span>Suscripcion</span>
+                </a>
+            {% endif %}
             <a href="{% url 'configuracion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-[#00685f] hover:bg-teal-800 text-white font-semibold text-xs transition flex items-center gap-2">
                 <span class="material-symbols-outlined text-base">storefront</span>
                 <span>Configurar Local</span>
@@ -60,9 +68,11 @@
                     <p class="text-slate-500">Mensual</p>
                 </div>
             </div>
-            <a href="{% url 'suscripcion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800">
-                Ver detalles
-            </a>
+            {% if user.is_staff and not user.is_superuser %}
+                <a href="{% url 'suscripcion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800">
+                    Ver detalles
+                </a>
+            {% endif %}
         </div>
     {% else %}
         <div class="rounded-3xl p-5 border border-sky-200 bg-sky-50 mb-8 text-sky-900">
@@ -300,9 +310,49 @@
                         <p class="text-xs text-slate-500">{{ business.currency_symbol }}{{ s.precio }} - {{ s.duracion_minutos }} min</p>
                     </div>
 
-                    <a href="{% url 'toggle_servicio' s.id %}" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
-                        {% if s.activo %}Activo{% else %}Inactivo{% endif %}
-                    </a>
+                    <form method="post" action="{% url 'toggle_servicio' s.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                            {% if s.activo %}Activo{% else %}Inactivo{% endif %}
+                        </button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mt-8">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h2 class="font-headline font-bold text-xl text-slate-900 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#00685f]">edit_square</span>
+                Editor de servicios del catalogo
+            </h2>
+            <a href="{% url 'nuevo_servicio' %}" class="px-4 py-2.5 rounded-xl bg-[#00685f] text-white font-bold text-xs hover:bg-teal-800 inline-flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">add</span>
+                Nuevo servicio
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for s in servicios %}
+                <div class="p-4 rounded-2xl border border-slate-200">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">{{ s.nombre }}</h4>
+                            <p class="text-xs text-slate-500">{{ s.get_categoria_display }} · {{ s.duracion_minutos }} min</p>
+                        </div>
+                        <span class="font-headline font-black text-[#00685f]">{{ business.currency_symbol }}{{ s.precio }}</span>
+                    </div>
+                    <div class="mt-4 flex items-center gap-2">
+                        <a href="{% url 'editar_servicio' s.id %}" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-center font-bold text-xs hover:bg-slate-800">
+                            Editar servicio
+                        </a>
+                        <form method="post" action="{% url 'toggle_servicio' s.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="px-3 py-2 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                                {% if s.activo %}Activo{% else %}Inactivo{% endif %}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             {% endfor %}
         </div>

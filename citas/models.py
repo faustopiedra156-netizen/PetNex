@@ -3,6 +3,28 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 
+class Negocio(models.Model):
+    nombre = models.CharField(max_length=120, verbose_name="Nombre del negocio")
+    propietario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='negocios_administrados',
+        verbose_name="Administrador del local",
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Negocio"
+        verbose_name_plural = "Negocios"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
 class PlanSuscripcion(models.Model):
     nombre = models.CharField(max_length=80, unique=True, verbose_name="Nombre del plan")
     precio_mensual = models.DecimalField(max_digits=7, decimal_places=2, default=0, verbose_name="Precio mensual")
@@ -30,6 +52,14 @@ class SuscripcionNegocio(models.Model):
         ('DEMO', 'Demo'),
     ]
 
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='suscripciones',
+        verbose_name="Negocio",
+    )
     plan = models.ForeignKey(PlanSuscripcion, on_delete=models.PROTECT, related_name='suscripciones')
     estado = models.CharField(max_length=20, choices=ESTADOS, default='DEMO', verbose_name="Estado")
     fecha_inicio = models.DateField(default=timezone.localdate, verbose_name="Fecha de inicio")
@@ -46,8 +76,11 @@ class SuscripcionNegocio(models.Model):
         return f"{self.plan.nombre} - {self.estado} hasta {self.fecha_vencimiento}"
 
     @classmethod
-    def actual(cls):
-        return cls.objects.select_related('plan').order_by('id').first()
+    def actual(cls, negocio=None):
+        queryset = cls.objects.select_related('plan', 'negocio')
+        if negocio:
+            queryset = queryset.filter(negocio=negocio)
+        return queryset.order_by('id').first()
 
     @property
     def dias_restantes(self):
@@ -105,6 +138,14 @@ class PagoSuscripcion(models.Model):
 
 
 class ConfiguracionNegocio(models.Model):
+    negocio = models.OneToOneField(
+        Negocio,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='configuracion',
+        verbose_name="Negocio",
+    )
     nombre = models.CharField(max_length=120, default='PetCare Loja')
     nombre_corto = models.CharField(max_length=80, default='PetCare')
     ciudad = models.CharField(max_length=80, default='Loja')
@@ -140,8 +181,11 @@ class ConfiguracionNegocio(models.Model):
         return self.nombre
 
     @classmethod
-    def actual(cls):
-        config = cls.objects.order_by('id').first()
+    def actual(cls, negocio=None):
+        queryset = cls.objects.select_related('negocio')
+        if negocio:
+            queryset = queryset.filter(negocio=negocio)
+        config = queryset.order_by('id').first()
         return config
 
     def as_business_dict(self):
@@ -181,7 +225,14 @@ class Servicio(models.Model):
         ('salud', 'Salud & Higiene'),
         ('especial', 'Tratamientos Especiales'),
     ]
-
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='servicios',
+        verbose_name="Negocio",
+    )
     nombre = models.CharField(max_length=100, verbose_name="Nombre del Servicio")
     descripcion = models.TextField(verbose_name="Descripción detallada")
     categoria = models.CharField(max_length=50, choices=CATEGORIAS, default='peluqueria', verbose_name="Categoría")
@@ -201,6 +252,14 @@ class Servicio(models.Model):
 
 
 class Sucursal(models.Model):
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='sucursales',
+        verbose_name="Negocio",
+    )
     nombre = models.CharField(max_length=120, verbose_name="Nombre de la sucursal")
     ciudad = models.CharField(max_length=80, verbose_name="Ciudad")
     direccion = models.CharField(max_length=180, verbose_name="Direccion")
@@ -239,6 +298,14 @@ class Mascota(models.Model):
 
 class PerfilCliente(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_cliente', verbose_name="Usuario")
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clientes',
+        verbose_name="Negocio principal",
+    )
     telefono = models.CharField(max_length=20, blank=True, verbose_name="Teléfono")
     direccion = models.CharField(max_length=180, blank=True, verbose_name="Dirección")
     barrio = models.CharField(max_length=80, blank=True, verbose_name="Barrio o sector")
@@ -276,6 +343,14 @@ class Cita(models.Model):
         ('ENTREGADA', 'Entregada'),
     ]
 
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='citas',
+        verbose_name="Negocio",
+    )
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='citas', verbose_name="Cliente")
     sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name='citas', verbose_name="Sucursal")
     mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='citas', verbose_name="Mascota")

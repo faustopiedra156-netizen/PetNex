@@ -132,9 +132,12 @@
                                     Pagar
                                 </a>
                             {% endif %}
-                            <a href="{% url 'cancelar_cita' cita.id %}" onclick="return confirm('¿Seguro que deseas cancelar esta cita?')" class="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition">
-                                Cancelar Cita
-                            </a>
+                            <form method="post" action="{% url 'cancelar_cita' cita.id %}" onsubmit="return confirm('Seguro que deseas cancelar esta cita?')">
+                                {% csrf_token %}
+                                <button type="submit" class="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition">
+                                    Cancelar Cita
+                                </button>
+                            </form>
                         {% endif %}
                         {% if cita.estado == 'ATENDIDA' %}
                             <a href="{% url 'calificar_cita' cita.id %}" class="px-3 py-1.5 rounded-xl bg-amber-500 text-white hover:bg-amber-600 text-xs font-semibold transition">

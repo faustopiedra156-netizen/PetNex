@@ -1,8 +1,15 @@
 from django.contrib import admin
 from .models import (
-    Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
+    Negocio, Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
     Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion,
 )
+
+
+@admin.register(Negocio)
+class NegocioAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'propietario', 'activo', 'creado_en')
+    list_filter = ('activo',)
+    search_fields = ('nombre', 'propietario__username', 'propietario__email')
 
 
 @admin.register(PlanSuscripcion)
@@ -14,9 +21,9 @@ class PlanSuscripcionAdmin(admin.ModelAdmin):
 
 @admin.register(SuscripcionNegocio)
 class SuscripcionNegocioAdmin(admin.ModelAdmin):
-    list_display = ('plan', 'estado', 'fecha_inicio', 'fecha_vencimiento', 'dias_restantes', 'actualizado_en')
-    list_filter = ('estado', 'plan')
-    search_fields = ('plan__nombre', 'contacto_pago')
+    list_display = ('negocio', 'plan', 'estado', 'fecha_inicio', 'fecha_vencimiento', 'dias_restantes', 'actualizado_en')
+    list_filter = ('estado', 'plan', 'negocio')
+    search_fields = ('negocio__nombre', 'plan__nombre', 'contacto_pago')
 
 
 @admin.register(PagoSuscripcion)
@@ -29,9 +36,9 @@ class PagoSuscripcionAdmin(admin.ModelAdmin):
 
 @admin.register(ConfiguracionNegocio)
 class ConfiguracionNegocioAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'ciudad', 'telefono', 'email', 'actualizado_en')
+    list_display = ('nombre', 'negocio', 'ciudad', 'telefono', 'email', 'actualizado_en')
     fieldsets = (
-        ('Identidad', {'fields': ('nombre', 'nombre_corto', 'categoria', 'slogan')}),
+        ('Identidad', {'fields': ('negocio', 'nombre', 'nombre_corto', 'categoria', 'slogan')}),
         ('Ubicacion y contacto', {'fields': ('ciudad', 'pais', 'codigo_pais', 'direccion', 'telefono', 'email', 'horario')}),
         ('Pagina publica', {'fields': ('hero_badge', 'hero_titulo', 'hero_descripcion', 'descripcion_footer', 'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal')}),
         ('Operacion', {'fields': ('moneda', 'simbolo_moneda', 'prefijo_transaccion', 'mostrar_cuentas_demo', 'google_login_activo')}),
@@ -39,16 +46,16 @@ class ConfiguracionNegocioAdmin(admin.ModelAdmin):
 
 @admin.register(Servicio)
 class ServicioAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'categoria', 'precio', 'duracion_minutos', 'destacado', 'activo')
-    list_filter = ('categoria', 'destacado', 'activo')
-    search_fields = ('nombre', 'descripcion')
+    list_display = ('nombre', 'negocio', 'categoria', 'precio', 'duracion_minutos', 'destacado', 'activo')
+    list_filter = ('negocio', 'categoria', 'destacado', 'activo')
+    search_fields = ('nombre', 'descripcion', 'negocio__nombre')
 
 
 @admin.register(Sucursal)
 class SucursalAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'ciudad', 'direccion', 'telefono', 'activa')
-    list_filter = ('activa', 'ciudad')
-    search_fields = ('nombre', 'ciudad', 'direccion')
+    list_display = ('nombre', 'negocio', 'ciudad', 'direccion', 'telefono', 'activa')
+    list_filter = ('negocio', 'activa', 'ciudad')
+    search_fields = ('nombre', 'ciudad', 'direccion', 'negocio__nombre')
 
 
 @admin.register(Mascota)
@@ -60,8 +67,8 @@ class MascotaAdmin(admin.ModelAdmin):
 
 @admin.register(Cita)
 class CitaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sucursal', 'mascota', 'servicio', 'propietario', 'fecha', 'hora', 'estado', 'etapa_seguimiento', 'progreso', 'estado_pago')
-    list_filter = ('sucursal', 'estado', 'etapa_seguimiento', 'estado_pago', 'fecha', 'servicio')
+    list_display = ('id', 'negocio', 'sucursal', 'mascota', 'servicio', 'propietario', 'fecha', 'hora', 'estado', 'etapa_seguimiento', 'progreso', 'estado_pago')
+    list_filter = ('negocio', 'sucursal', 'estado', 'etapa_seguimiento', 'estado_pago', 'fecha', 'servicio')
     search_fields = ('mascota__nombre', 'propietario__username', 'servicio__nombre', 'sucursal__nombre')
     date_hierarchy = 'fecha'
 

@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from .models import (
     Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio,
-    Sucursal, SuscripcionNegocio,
+    Sucursal, SuscripcionNegocio, Negocio,
 )
 import datetime
 
@@ -51,12 +51,19 @@ class CitaForm(forms.ModelForm):
         }
 
     def __init__(self, user, *args, **kwargs):
+        negocio = kwargs.pop('negocio', None)
         self.user = user
+        self.negocio = negocio
         super().__init__(*args, **kwargs)
         if user and user.is_authenticated:
             self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).select_related('propietario').only('nombre', 'raza', 'propietario__username', 'propietario__first_name', 'propietario__last_name')
-        self.fields['sucursal'].queryset = Sucursal.objects.filter(activa=True).only('nombre', 'ciudad', 'direccion')
-        self.fields['servicio'].queryset = Servicio.objects.filter(activo=True).only('nombre', 'precio')
+        sucursales = Sucursal.objects.filter(activa=True)
+        servicios = Servicio.objects.filter(activo=True)
+        if negocio:
+            sucursales = sucursales.filter(negocio=negocio)
+            servicios = servicios.filter(negocio=negocio)
+        self.fields['sucursal'].queryset = sucursales.only('nombre', 'ciudad', 'direccion')
+        self.fields['servicio'].queryset = servicios.only('nombre', 'precio')
         self.fields['sucursal'].error_messages['required'] = "Selecciona la sucursal donde se atendera la mascota."
         self.fields['mascota'].error_messages['required'] = "Selecciona una mascota registrada."
         self.fields['servicio'].error_messages['required'] = "Selecciona el servicio que deseas reservar."
@@ -91,6 +98,82 @@ class CitaForm(forms.ModelForm):
             if existe.exists():
                 raise forms.ValidationError("Ese horario ya esta ocupado en la sucursal seleccionada. Elige otra hora.")
         return cleaned_data
+
+
+class AdminUsuarioForm(forms.ModelForm):
+    negocio_nombre = forms.CharField(widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Ej. Happy Pets Quito'}))
+    telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': '+593 99 999 9999'}))
+    direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Direccion de referencia'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Contrasena temporal'}))
+    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Confirmar contrasena'}))
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'username']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Nombre'}),
+            'last_name': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Apellido'}),
+            'email': forms.EmailInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'correo@ejemplo.com'}),
+            'username': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'usuario'}),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip()
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Ya existe una cuenta con este correo.")
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username', '').strip()
+        if username and User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Ya existe una cuenta con este usuario.")
+        return username
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('password') != cleaned_data.get('confirm_password'):
+            raise forms.ValidationError("Las contrasenas no coinciden.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password'])
+        user.is_staff = True
+        user.is_superuser = False
+        if commit:
+            user.save()
+            negocio, _ = Negocio.objects.get_or_create(
+                propietario=user,
+                defaults={'nombre': self.cleaned_data['negocio_nombre']},
+            )
+            if negocio.nombre != self.cleaned_data['negocio_nombre']:
+                negocio.nombre = self.cleaned_data['negocio_nombre']
+                negocio.save(update_fields=['nombre'])
+            PerfilCliente.objects.get_or_create(
+                usuario=user,
+                defaults={
+                    'negocio': negocio,
+                    'telefono': self.cleaned_data.get('telefono', ''),
+                    'direccion': self.cleaned_data.get('direccion', ''),
+                },
+            )
+        return user
+
+
+class ServicioForm(forms.ModelForm):
+    class Meta:
+        model = Servicio
+        fields = ['nombre', 'categoria', 'descripcion', 'precio', 'duracion_minutos', 'icono', 'destacado', 'activo']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Ej. Bano & Spa Canino Pro'}),
+            'categoria': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none bg-white'}),
+            'descripcion': forms.Textarea(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'rows': 4, 'placeholder': 'Describe lo que incluye el servicio.'}),
+            'precio': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'min': '0', 'step': '0.01'}),
+            'duracion_minutos': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'min': '5', 'step': '5'}),
+            'icono': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'content_cut, pets, shower, health_and_safety'}),
+            'destacado': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
+        }
 
 
 class PerfilClienteForm(forms.ModelForm):
@@ -135,20 +218,6 @@ class PerfilClienteForm(forms.ModelForm):
             self.user.save()
             perfil.save()
         return perfil
-
-
-class ServicioForm(forms.ModelForm):
-    class Meta:
-        model = Servicio
-        fields = ['nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos', 'icono', 'destacado', 'activo']
-        widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300'}),
-            'descripcion': forms.Textarea(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300', 'rows': 3}),
-            'categoria': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300'}),
-            'precio': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300', 'step': '0.5'}),
-            'duracion_minutos': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300'}),
-            'icono': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300'}),
-        }
 
 
 class ConfiguracionNegocioForm(forms.ModelForm):

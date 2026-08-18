@@ -23,6 +23,7 @@ urlpatterns = [
     
     # Admin / Staff
     path('gestion/', views.gestion_admin_view, name='gestion_admin'),
+    path('gestion/cuentas/', views.cuentas_admin_view, name='cuentas_admin'),
     path('gestion/configuracion/', views.configuracion_negocio_view, name='configuracion_negocio'),
     path('gestion/suscripcion/', views.suscripcion_negocio_view, name='suscripcion_negocio'),
     path('gestion/suscripcion/pagar/', views.crear_pago_suscripcion_view, name='crear_pago_suscripcion'),
@@ -31,6 +32,8 @@ urlpatterns = [
     path('gestion/cita/<int:cita_id>/estado/', views.cambiar_estado_cita_view, name='cambiar_estado_cita'),
     path('gestion/cita/<int:cita_id>/pago/', views.actualizar_pago_cita_view, name='actualizar_pago_cita'),
     path('gestion/cita/<int:cita_id>/seguimiento/', views.actualizar_seguimiento_cita_view, name='actualizar_seguimiento_cita'),
+    path('gestion/servicio/nuevo/', views.servicio_form_view, name='nuevo_servicio'),
+    path('gestion/servicio/<int:servicio_id>/editar/', views.servicio_form_view, name='editar_servicio'),
     path('gestion/servicio/<int:servicio_id>/toggle/', views.toggle_servicio_view, name='toggle_servicio'),
 
     # Auth

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load account %}
+
+{% block title %}Completar Registro - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-[calc(100vh-5rem)] flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8">
+        <div class="text-center mb-7">
+            <div class="mx-auto w-14 h-14 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center mb-4">
+                <span class="material-symbols-outlined text-3xl">account_circle</span>
+            </div>
+            <p class="text-xs font-black uppercase tracking-wider text-[#00685f] mb-2">Cuenta de Google</p>
+            <h1 class="font-headline font-black text-2xl text-slate-900">Completa tu registro</h1>
+            <p class="text-sm text-slate-500 mt-2">
+                Confirma el correo que usaras para acceder a tus mascotas y citas en {{ business.name }}.
+            </p>
+        </div>
+
+        <form method="post" action="{% url 'socialaccount_signup' %}" class="space-y-5">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                {% if field.is_hidden %}
+                    {{ field }}
+                {% else %}
+                    <label class="block">
+                        <span class="block text-xs font-bold text-slate-600 mb-1">{{ field.label }}</span>
+                        <div class="allauth-field">
+                            {{ field }}
+                        </div>
+                        {% if field.errors %}
+                            <span class="text-xs text-red-600">{{ field.errors.0 }}</span>
+                        {% endif %}
+                    </label>
+                {% endif %}
+            {% endfor %}
+
+            <button type="submit" class="w-full py-3 rounded-xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold shadow-lg">
+                Crear mi cuenta
+            </button>
+
+            <a href="{% url 'login' %}" class="block text-center text-sm font-semibold text-slate-500 hover:text-[#00685f]">
+                Volver al inicio de sesion
+            </a>
+        </form>
+    </div>
+</div>
+
+<style>
+    .allauth-field input {
+        width: 100%;
+        border: 1px solid rgb(203 213 225);
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        outline: none;
+    }
+
+    .allauth-field input:focus {
+        border-color: #00685f;
+        box-shadow: 0 0 0 2px rgba(0, 104, 95, 0.18);
+    }
+</style>
+{% endblock %}

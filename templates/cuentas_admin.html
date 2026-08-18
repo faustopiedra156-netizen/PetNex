@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Cuentas del sistema - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-bold uppercase">
+                <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
+                Dueño PetNexo
+            </span>
+            <h1 class="font-headline font-black text-3xl text-slate-900 mt-3">Cuentas del sistema</h1>
+            <p class="text-sm text-slate-500">Crea administradores para cada local. Los clientes finales se registran solos desde la pagina publica o con Google.</p>
+        </div>
+        <a href="{% url 'gestion_admin' %}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50">
+            Volver al panel
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-6">
+        <form method="post" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
+            {% csrf_token %}
+            <div>
+                <h2 class="font-headline font-black text-xl text-slate-900">Crear administrador del local</h2>
+                <p class="text-sm text-slate-500 mt-1">Esta cuenta sera para el dueño de la clinica, veterinaria o peluqueria.</p>
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">Nombre del negocio / local</span>
+                {{ form.negocio_nombre }}
+                {% if form.negocio_nombre.errors %}<span class="text-xs text-red-600">{{ form.negocio_nombre.errors.0 }}</span>{% endif %}
+            </label>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block">
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Nombre</span>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}<span class="text-xs text-red-600">{{ form.first_name.errors.0 }}</span>{% endif %}
+                </label>
+                <label class="block">
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Apellido</span>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}<span class="text-xs text-red-600">{{ form.last_name.errors.0 }}</span>{% endif %}
+                </label>
+            </div>
+
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">Usuario</span>
+                {{ form.username }}
+                {% if form.username.errors %}<span class="text-xs text-red-600">{{ form.username.errors.0 }}</span>{% endif %}
+            </label>
+
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">Correo</span>
+                {{ form.email }}
+                {% if form.email.errors %}<span class="text-xs text-red-600">{{ form.email.errors.0 }}</span>{% endif %}
+            </label>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block">
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Telefono / WhatsApp</span>
+                    {{ form.telefono }}
+                    {% if form.telefono.errors %}<span class="text-xs text-red-600">{{ form.telefono.errors.0 }}</span>{% endif %}
+                </label>
+                <label class="block">
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Direccion</span>
+                    {{ form.direccion }}
+                    {% if form.direccion.errors %}<span class="text-xs text-red-600">{{ form.direccion.errors.0 }}</span>{% endif %}
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block">
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Contrasena temporal</span>
+                    {{ form.password }}
+                    {% if form.password.errors %}<span class="text-xs text-red-600">{{ form.password.errors.0 }}</span>{% endif %}
+                </label>
+                <label class="block">
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Confirmar contrasena</span>
+                    {{ form.confirm_password }}
+                    {% if form.confirm_password.errors %}<span class="text-xs text-red-600">{{ form.confirm_password.errors.0 }}</span>{% endif %}
+                </label>
+            </div>
+
+            <button class="w-full px-6 py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800">
+                Crear administrador local
+            </button>
+        </form>
+
+        <div class="space-y-6">
+            <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Dueño de PetNexo</h2>
+                <div class="space-y-3">
+                    {% for usuario in duenos_petnexo %}
+                        <div class="rounded-2xl border border-slate-200 bg-slate-900 p-4 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="font-bold text-white">{{ usuario.get_full_name|default:usuario.username }}</p>
+                                <p class="text-xs text-slate-300">{{ usuario.email|default:"Sin correo" }} - {{ usuario.username }}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full bg-white text-slate-900 text-xs font-black">PetNexo</span>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-slate-500">No hay dueño PetNexo configurado.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Administradores del local</h2>
+                <div class="space-y-3">
+                    {% for usuario in administradores %}
+                        <div class="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="font-bold text-slate-900">{{ usuario.get_full_name|default:usuario.username }}</p>
+                                <p class="text-xs text-slate-500">{{ usuario.email|default:"Sin correo" }} - {{ usuario.username }}</p>
+                                <p class="text-xs font-bold text-amber-800 mt-1">
+                                    {% with negocio=usuario.negocios_administrados.first %}
+                                        {{ negocio.nombre|default:"Sin negocio asignado" }}
+                                    {% endwith %}
+                                </p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black">Admin local</span>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-slate-500">Todavia no hay administradores del local.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                <h2 class="font-headline font-black text-xl text-slate-900 mb-1">Clientes finales</h2>
+                <p class="text-sm text-slate-500 mb-4">Solo lectura. Estos usuarios se crean desde Registro o Google Login.</p>
+                <div class="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                    {% for usuario in clientes %}
+                        <div class="rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="font-bold text-slate-900">{{ usuario.get_full_name|default:usuario.username }}</p>
+                                <p class="text-xs text-slate-500">{{ usuario.email|default:"Sin correo" }} - {{ usuario.username }}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-black">Cliente</span>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-slate-500">Todavia no hay clientes registrados.</p>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

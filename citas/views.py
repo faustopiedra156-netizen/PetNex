@@ -9,13 +9,15 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db import connection, DatabaseError, OperationalError, ProgrammingError
 from django.db.models import Sum, Count, Q, Avg
+from django.views.decorators.http import require_POST
 from django.utils import timezone
-from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm
-from .services import obtener_configuracion_negocio, enviar_notificacion, estado_licencia
+from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm
+from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_publico, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
 PROGRESO_POR_ETAPA = {
@@ -52,6 +54,37 @@ def es_staff(user):
     return user.is_staff or user.is_superuser
 
 
+def es_dueno_petnexo(user):
+    return user.is_authenticated and user.is_superuser
+
+
+def es_admin_local(user):
+    return user.is_authenticated and user.is_staff and not user.is_superuser
+
+
+def es_responsable_suscripcion(user):
+    return es_admin_local(user)
+
+
+def negocio_para_request(request):
+    if request.user.is_authenticated:
+        negocio = obtener_negocio_usuario(request.user)
+        if negocio:
+            return negocio
+    return obtener_negocio_publico()
+
+
+def negocio_admin_o_redirect(request):
+    negocio = obtener_negocio_usuario(request.user)
+    if negocio:
+        return negocio, None
+    if request.user.is_superuser:
+        negocio = obtener_negocio_publico()
+        return negocio, None
+    messages.error(request, "Tu cuenta administrativa aun no tiene un negocio asignado.")
+    return None, redirect('home')
+
+
 def redirect_si_no_staff(request):
     if es_staff(request.user):
         return None
@@ -60,7 +93,8 @@ def redirect_si_no_staff(request):
 
 
 def licencia_bloqueada_para_operar(user):
-    licencia = estado_licencia()
+    negocio = obtener_negocio_usuario(user)
+    licencia = estado_licencia(negocio)
     return not licencia['activa'] and not user.is_superuser
 
 
@@ -102,18 +136,19 @@ def health_check_view(request):
 
 
 def home_view(request):
+    negocio = negocio_para_request(request)
     try:
-        servicios_destacados = Servicio.objects.filter(activo=True, destacado=True).only(
+        servicios_destacados = Servicio.objects.filter(negocio=negocio, activo=True, destacado=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
         )[:4]
-        servicios_todos = Servicio.objects.filter(activo=True).only(
+        servicios_todos = Servicio.objects.filter(negocio=negocio, activo=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
         )[:6]
-        mascotas_atendidas = Cita.objects.filter(estado='ATENDIDA').values('mascota_id').distinct().count()
-        total_citas_operativas = Cita.objects.exclude(estado='CANCELADA').count()
-        citas_atendidas = Cita.objects.filter(estado='ATENDIDA').count()
+        mascotas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').values('mascota_id').distinct().count()
+        total_citas_operativas = Cita.objects.filter(negocio=negocio).exclude(estado='CANCELADA').count()
+        citas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').count()
         tasa_atencion = round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0
-        resumen_resenas = Calificacion.objects.aggregate(promedio=Avg('puntuacion'), total=Count('id'))
+        resumen_resenas = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'), total=Count('id'))
         promedio_resenas = resumen_resenas['promedio'] or 0
         total_resenas = resumen_resenas['total']
     except (OperationalError, ProgrammingError):
@@ -136,9 +171,10 @@ def home_view(request):
 
 
 def servicios_view(request):
+    negocio = negocio_para_request(request)
     categoria = request.GET.get('categoria', 'todas')
     try:
-        servicios = Servicio.objects.filter(activo=True).only(
+        servicios = Servicio.objects.filter(negocio=negocio, activo=True).only(
             'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos', 'icono'
         )
         if categoria and categoria != 'todas':
@@ -166,12 +202,13 @@ def chatbot_view(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Metodo no permitido.'}, status=405)
 
-    licencia = estado_licencia()
+    negocio_obj = negocio_para_request(request)
+    licencia = estado_licencia(negocio_obj)
     if licencia['suscripcion'] and not licencia['suscripcion'].plan.permite_chatbot:
         return JsonResponse({'respuesta': 'El chatbot no esta disponible en el plan actual.'}, status=403)
 
     mensaje = (request.POST.get('mensaje') or '').strip()
-    negocio = obtener_configuracion_negocio()
+    negocio = obtener_configuracion_negocio(negocio_obj)
     if not mensaje:
         return JsonResponse({
             'respuesta': 'Escribeme tu consulta y te ayudo con servicios, horarios, citas, pagos o seguimiento.'
@@ -180,7 +217,7 @@ def chatbot_view(request):
     texto = mensaje.lower()
     try:
         servicios = list(
-            Servicio.objects.filter(activo=True).only(
+            Servicio.objects.filter(negocio=negocio_obj, activo=True).only(
                 'nombre', 'descripcion', 'categoria', 'precio', 'duracion_minutos'
             )[:6]
         )
@@ -237,6 +274,7 @@ def chatbot_view(request):
 
 @login_required
 def disponibilidad_horarios_view(request):
+    negocio = negocio_para_request(request)
     sucursal_id = request.GET.get('sucursal')
     fecha = request.GET.get('fecha')
     if not sucursal_id or not fecha:
@@ -249,6 +287,7 @@ def disponibilidad_horarios_view(request):
 
     ocupadas = set(
         Cita.objects.filter(
+            negocio=negocio,
             sucursal_id=sucursal_id,
             fecha=fecha_obj,
         ).exclude(estado='CANCELADA').values_list('hora', flat=True)
@@ -265,13 +304,15 @@ def disponibilidad_horarios_view(request):
 
 @login_required
 def agendar_cita_view(request):
-    licencia = estado_licencia()
+    negocio = negocio_para_request(request)
+    licencia = estado_licencia(negocio)
     if not licencia['activa'] and not request.user.is_superuser:
         messages.error(request, licencia['mensaje'])
         return redirect('home')
     if licencia['suscripcion'] and not request.user.is_superuser:
         hoy = timezone.localdate()
         citas_mes = Cita.objects.filter(
+            negocio=negocio,
             creado_en__year=hoy.year,
             creado_en__month=hoy.month,
         ).exclude(estado='CANCELADA').count()
@@ -282,7 +323,7 @@ def agendar_cita_view(request):
     servicio_id = request.GET.get('servicio_id')
     servicio_preseleccionado = None
     if servicio_id:
-        servicio_preseleccionado = Servicio.objects.filter(id=servicio_id, activo=True).first()
+        servicio_preseleccionado = Servicio.objects.filter(negocio=negocio, id=servicio_id, activo=True).first()
 
     # Verify user has at least one pet registered
     mascotas_usuario = Mascota.objects.filter(propietario=request.user).only('nombre', 'raza')
@@ -291,14 +332,15 @@ def agendar_cita_view(request):
         return redirect('nueva_mascota')
 
     if request.method == 'POST':
-        form = CitaForm(request.user, request.POST)
+        form = CitaForm(request.user, request.POST, negocio=negocio)
         if form.is_valid():
             cita = form.save(commit=False)
+            cita.negocio = negocio
             cita.propietario = request.user
             cita.save()
-            negocio = obtener_configuracion_negocio()
+            negocio_datos = obtener_configuracion_negocio(negocio)
             enviar_notificacion(
-                f"Nueva cita en {negocio['name']}",
+                f"Nueva cita en {negocio_datos['name']}",
                 f"Hola {request.user.first_name or request.user.username}, tu cita para {cita.mascota.nombre} fue registrada en {cita.sucursal.nombre} para el {cita.fecha} a las {cita.hora}.",
                 [request.user.email],
             )
@@ -315,7 +357,7 @@ def agendar_cita_view(request):
         initial = {}
         if servicio_preseleccionado:
             initial['servicio'] = servicio_preseleccionado
-        form = CitaForm(request.user, initial=initial)
+        form = CitaForm(request.user, initial=initial, negocio=negocio)
 
     context = {
         'form': form,
@@ -353,7 +395,7 @@ def calificar_cita_view(request, cita_id):
             nueva_calificacion.cita = cita
             nueva_calificacion.cliente = request.user
             nueva_calificacion.save()
-            messages.success(request, f"Gracias por calificar el servicio de {obtener_configuracion_negocio()['name']}.")
+            messages.success(request, f"Gracias por calificar el servicio de {obtener_configuracion_negocio(cita.negocio)['name']}.")
             return redirect('mis_citas')
     else:
         form = CalificacionForm(instance=calificacion)
@@ -367,6 +409,7 @@ def calificar_cita_view(request, cita_id):
 
 
 @login_required
+@require_POST
 def cancelar_cita_view(request, cita_id):
     cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
     if cita.estado in ESTADOS_EDITABLES_CLIENTE:
@@ -380,7 +423,8 @@ def cancelar_cita_view(request, cita_id):
 
 @login_required
 def pagar_cita_view(request, cita_id):
-    licencia = estado_licencia()
+    negocio = negocio_para_request(request)
+    licencia = estado_licencia(negocio)
     if not licencia['activa'] and not request.user.is_superuser:
         messages.error(request, licencia['mensaje'])
         return redirect('mis_citas')
@@ -388,7 +432,7 @@ def pagar_cita_view(request, cita_id):
         messages.error(request, "Tu plan actual de PetNexo no incluye gestion de pagos.")
         return redirect('mis_citas')
 
-    cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
+    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio, propietario=request.user)
     if cita.estado == 'CANCELADA':
         messages.error(request, "No puedes pagar una cita cancelada.")
         return redirect('mis_citas')
@@ -411,7 +455,7 @@ def pagar_cita_view(request, cita_id):
             cita.estado_pago = 'ABONADO'
             cita.referencia_pago = referencia
             cita.save()
-            messages.success(request, f"Transferencia registrada. {obtener_configuracion_negocio()['name']} confirmara el pago en el panel administrativo.")
+            messages.success(request, f"Transferencia registrada. {obtener_configuracion_negocio(cita.negocio)['name']} confirmara el pago en el panel administrativo.")
             return redirect('mis_citas')
 
         if metodo_pago == 'EFECTIVO':
@@ -449,7 +493,7 @@ def pagar_cita_view(request, cita_id):
 def crear_checkout_datafast(request, cita):
     url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
     user = request.user
-    negocio = obtener_configuracion_negocio()
+    negocio = obtener_configuracion_negocio(cita.negocio)
     amount = f"{float(cita.servicio.precio):.2f}"
     data = {
         'entityId': settings.DATAFAST_ENTITY_ID,
@@ -511,7 +555,7 @@ def crear_checkout_suscripcion_datafast(request, pago):
 
 @login_required
 def datafast_widget_view(request, cita_id):
-    cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
+    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio_para_request(request), propietario=request.user)
     if not cita.datafast_checkout_id:
         messages.error(request, "Primero inicia el pago con tarjeta.")
         return redirect('pagar_cita', cita_id=cita.id)
@@ -524,7 +568,7 @@ def datafast_widget_view(request, cita_id):
 
 @login_required
 def datafast_result_view(request, cita_id):
-    cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
+    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio_para_request(request), propietario=request.user)
     resource_path = request.GET.get('resourcePath', '')
     if not resource_path:
         messages.error(request, "No se recibió la respuesta del pago.")
@@ -585,13 +629,14 @@ def perfil_cliente_view(request):
 
 @login_required
 def nueva_mascota_view(request):
+    negocio = negocio_para_request(request)
     if request.method == 'POST':
         form = MascotaForm(request.POST)
         if form.is_valid():
             mascota = form.save(commit=False)
             mascota.propietario = request.user
             mascota.save()
-            messages.success(request, f"{mascota.nombre} fue registrado con exito en {obtener_configuracion_negocio()['name']}.")
+            messages.success(request, f"{mascota.nombre} fue registrado con exito en {obtener_configuracion_negocio(negocio)['name']}.")
             
             # If user came from booking flow, redirect back to agendar
             if request.GET.get('next') == 'agendar':
@@ -628,6 +673,7 @@ def editar_mascota_view(request, mascota_id):
 
 
 @login_required
+@require_POST
 def eliminar_mascota_view(request, mascota_id):
     mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user)
     nombre = mascota.nombre
@@ -642,23 +688,27 @@ def gestion_admin_view(request):
     if not es_staff(request.user):
         messages.error(request, "Acceso restringido a administradores.")
         return redirect('home')
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
 
     estado_filtro = request.GET.get('estado', 'TODOS')
+    citas_base = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio)
     if estado_filtro and estado_filtro != 'TODOS':
-        citas = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(estado=estado_filtro).order_by('-fecha', '-hora')
+        citas = citas_base.filter(estado=estado_filtro).order_by('-fecha', '-hora')
     else:
-        citas = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').all().order_by('-fecha', '-hora')
+        citas = citas_base.order_by('-fecha', '-hora')
 
     sucursal_filtro = request.GET.get('sucursal', 'TODAS')
     if sucursal_filtro and sucursal_filtro != 'TODAS' and sucursal_filtro.isdigit():
         citas = citas.filter(sucursal_id=sucursal_filtro)
 
-    servicios = Servicio.objects.only('nombre', 'precio', 'duracion_minutos', 'activo')
-    sucursales = Sucursal.objects.filter(activa=True).only('nombre', 'ciudad')
+    servicios = Servicio.objects.filter(negocio=negocio).only('nombre', 'precio', 'duracion_minutos', 'activo')
+    sucursales = Sucursal.objects.filter(negocio=negocio, activa=True).only('nombre', 'ciudad')
     hoy = timezone.localdate()
     inicio_mes = hoy.replace(day=1)
     
-    resumen = Cita.objects.aggregate(
+    resumen = Cita.objects.filter(negocio=negocio).aggregate(
         total=Count('id'),
         pendientes=Count('id', filter=Q(estado='PENDIENTE')),
         confirmadas=Count('id', filter=Q(estado='CONFIRMADA')),
@@ -666,11 +716,11 @@ def gestion_admin_view(request):
         hoy=Count('id', filter=Q(fecha=hoy)),
         pagos_pendientes=Count('id', filter=Q(estado_pago__in=['PENDIENTE', 'ABONADO'])),
     )
-    ingresos = Cita.objects.filter(estado='ATENDIDA').aggregate(total=Sum('servicio__precio'))['total'] or 0
-    ingresos_mes = Cita.objects.filter(estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('servicio__precio'))['total'] or 0
-    promedio_calificacion = Calificacion.objects.aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
-    citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(fecha=hoy).order_by('sucursal__nombre', 'hora')[:8]
-    licencia = estado_licencia()
+    ingresos = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').aggregate(total=Sum('servicio__precio'))['total'] or 0
+    ingresos_mes = Cita.objects.filter(negocio=negocio, estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('servicio__precio'))['total'] or 0
+    promedio_calificacion = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
+    citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio, fecha=hoy).order_by('sucursal__nombre', 'hora')[:8]
+    licencia = estado_licencia(negocio)
 
     context = {
         'citas': citas,
@@ -698,12 +748,32 @@ def configuracion_negocio_view(request):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
 
-    config, _ = ConfiguracionNegocio.objects.get_or_create(id=1)
+    config, _ = ConfiguracionNegocio.objects.get_or_create(
+        negocio=negocio,
+        defaults={'nombre': negocio.nombre},
+    )
     if request.method == 'POST':
         form = ConfiguracionNegocioForm(request.POST, instance=config)
         if form.is_valid():
-            form.save()
+            config_guardada = form.save(commit=False)
+            config_guardada.negocio = negocio
+            config_guardada.save()
+            negocio.nombre = config_guardada.nombre
+            negocio.save(update_fields=['nombre'])
+            Sucursal.objects.update_or_create(
+                negocio=negocio,
+                nombre=f"{negocio.nombre} Principal",
+                defaults={
+                    'ciudad': config_guardada.ciudad,
+                    'direccion': config_guardada.direccion,
+                    'telefono': config_guardada.telefono,
+                    'activa': True,
+                },
+            )
             messages.success(request, "Configuracion del negocio actualizada.")
             return redirect('configuracion_negocio')
     else:
@@ -729,34 +799,97 @@ def configuracion_negocio_view(request):
 
 
 @login_required
+def cuentas_admin_view(request):
+    if not es_dueno_petnexo(request.user):
+        messages.error(request, "Solo el dueño de PetNexo puede crear cuentas administrativas del sistema.")
+        return redirect('gestion_admin')
+
+    if request.method == 'POST':
+        form = AdminUsuarioForm(request.POST)
+        if form.is_valid():
+            usuario = form.save()
+            negocio = obtener_negocio_usuario(usuario)
+            if negocio:
+                ConfiguracionNegocio.objects.get_or_create(
+                    negocio=negocio,
+                    defaults={'nombre': negocio.nombre, 'nombre_corto': negocio.nombre.split()[0]},
+                )
+                Sucursal.objects.get_or_create(
+                    negocio=negocio,
+                    nombre=f"{negocio.nombre} Principal",
+                    defaults={
+                        'ciudad': '',
+                        'direccion': '',
+                        'telefono': '',
+                        'activa': True,
+                    },
+                )
+                plan_base = PlanSuscripcion.objects.filter(activo=True).order_by('precio_mensual', 'nombre').first()
+                if plan_base:
+                    SuscripcionNegocio.objects.get_or_create(
+                        negocio=negocio,
+                        defaults={
+                            'plan': plan_base,
+                            'estado': 'DEMO',
+                            'fecha_inicio': timezone.localdate(),
+                            'fecha_vencimiento': timezone.localdate() + datetime.timedelta(days=30),
+                            'contacto_pago': usuario.email or usuario.username,
+                        },
+                    )
+            messages.success(request, f"Cuenta de administrador local creada para {usuario.get_full_name() or usuario.username}.")
+            return redirect('cuentas_admin')
+    else:
+        form = AdminUsuarioForm()
+
+    usuarios = User.objects.select_related('perfil_cliente').prefetch_related('negocios_administrados').order_by('-is_staff', 'first_name', 'username')
+    duenos_petnexo = usuarios.filter(is_superuser=True)
+    administradores = usuarios.filter(is_staff=True, is_superuser=False)
+    clientes = usuarios.filter(is_staff=False, is_superuser=False)
+
+    return render(request, 'cuentas_admin.html', {
+        'form': form,
+        'duenos_petnexo': duenos_petnexo,
+        'administradores': administradores,
+        'clientes': clientes,
+    })
+
+
+@login_required
 def suscripcion_negocio_view(request):
-    redirect_response = redirect_si_no_staff(request)
+    if not es_responsable_suscripcion(request.user):
+        messages.error(request, "Solo el administrador del local puede gestionar la suscripcion del negocio.")
+        return redirect('gestion_admin')
+    negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
         return redirect_response
 
     planes = PlanSuscripcion.objects.filter(activo=True).order_by('precio_mensual', 'nombre')
     plan_base = planes.first()
-    suscripcion = SuscripcionNegocio.actual()
+    suscripcion = SuscripcionNegocio.actual(negocio=negocio)
     if not suscripcion and plan_base:
         suscripcion = SuscripcionNegocio.objects.create(
+            negocio=negocio,
             plan=plan_base,
             estado='DEMO',
             fecha_inicio=timezone.localdate(),
             fecha_vencimiento=timezone.localdate() + datetime.timedelta(days=30),
-            contacto_pago='Administrador PetNexo',
+            contacto_pago=request.user.email or request.user.username,
         )
 
     return render(request, 'suscripcion_negocio.html', {
         'planes': planes,
         'suscripcion': suscripcion,
-        'estado': estado_licencia(),
+        'estado': estado_licencia(negocio),
         'tarjeta_configurada': datafast_configurado(),
     })
 
 
 @login_required
 def crear_pago_suscripcion_view(request):
-    redirect_response = redirect_si_no_staff(request)
+    if not es_responsable_suscripcion(request.user):
+        messages.error(request, "Solo el administrador del local puede cambiar la suscripcion del negocio.")
+        return redirect('gestion_admin')
+    negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
         return redirect_response
 
@@ -769,7 +902,7 @@ def crear_pago_suscripcion_view(request):
 
     plan = get_object_or_404(PlanSuscripcion, id=request.POST.get('plan_id'), activo=True)
     ciclo = normalizar_ciclo_facturacion(request.POST.get('ciclo_facturacion', 'MENSUAL'))
-    suscripcion = SuscripcionNegocio.actual()
+    suscripcion = SuscripcionNegocio.actual(negocio=negocio)
     contacto = request.POST.get('contacto_pago', '').strip() or request.user.email or request.user.username
     pago = PagoSuscripcion.objects.create(
         suscripcion=suscripcion,
@@ -795,11 +928,14 @@ def crear_pago_suscripcion_view(request):
 
 @login_required
 def datafast_suscripcion_widget_view(request, pago_id):
-    redirect_response = redirect_si_no_staff(request)
+    if not es_responsable_suscripcion(request.user):
+        messages.error(request, "Solo el administrador del local puede pagar la suscripcion del negocio.")
+        return redirect('gestion_admin')
+    negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
         return redirect_response
 
-    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user)
+    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user, suscripcion__negocio=negocio)
     if not pago.checkout_id:
         messages.error(request, "Primero inicia el pago de la suscripcion.")
         return redirect('suscripcion_negocio')
@@ -813,11 +949,14 @@ def datafast_suscripcion_widget_view(request, pago_id):
 
 @login_required
 def datafast_suscripcion_result_view(request, pago_id):
-    redirect_response = redirect_si_no_staff(request)
+    if not es_responsable_suscripcion(request.user):
+        messages.error(request, "Solo el administrador del local puede verificar pagos de suscripcion.")
+        return redirect('gestion_admin')
+    negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
         return redirect_response
 
-    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user)
+    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user, suscripcion__negocio=negocio)
     resource_path = request.GET.get('resourcePath', '')
     if not resource_path:
         messages.error(request, "No se recibio la respuesta del pago.")
@@ -842,7 +981,7 @@ def datafast_suscripcion_result_view(request, pago_id):
     if DATAFAST_RESULT_OK_PATTERN.match(result_code):
         hoy = timezone.localdate()
         dias = 365 if pago.ciclo_facturacion == 'ANUAL' else 30
-        suscripcion = pago.suscripcion or SuscripcionNegocio.actual()
+        suscripcion = pago.suscripcion or SuscripcionNegocio.actual(negocio=negocio)
         if suscripcion:
             suscripcion.plan = pago.plan
             suscripcion.estado = 'ACTIVA'
@@ -862,15 +1001,19 @@ def datafast_suscripcion_result_view(request, pago_id):
 
 
 @login_required
+@require_POST
 def cambiar_estado_cita_view(request, cita_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
     if licencia_bloqueada_para_operar(request.user):
-        messages.error(request, estado_licencia()['mensaje'])
+        messages.error(request, estado_licencia(negocio)['mensaje'])
         return redirect('gestion_admin')
 
-    cita = get_object_or_404(Cita, id=cita_id)
+    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio)
     nuevo_estado = request.POST.get('nuevo_estado')
     if nuevo_estado in ['PENDIENTE', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA']:
         cita.estado = nuevo_estado
@@ -886,15 +1029,19 @@ def cambiar_estado_cita_view(request, cita_id):
 
 
 @login_required
+@require_POST
 def actualizar_pago_cita_view(request, cita_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
     if licencia_bloqueada_para_operar(request.user):
-        messages.error(request, estado_licencia()['mensaje'])
+        messages.error(request, estado_licencia(negocio)['mensaje'])
         return redirect('gestion_admin')
 
-    cita = get_object_or_404(Cita, id=cita_id)
+    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio)
     estado_pago = request.POST.get('estado_pago')
     metodo_pago = request.POST.get('metodo_pago')
     estados_validos = dict(Cita._meta.get_field('estado_pago').choices)
@@ -912,15 +1059,19 @@ def actualizar_pago_cita_view(request, cita_id):
 
 
 @login_required
+@require_POST
 def actualizar_seguimiento_cita_view(request, cita_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
     if licencia_bloqueada_para_operar(request.user):
-        messages.error(request, estado_licencia()['mensaje'])
+        messages.error(request, estado_licencia(negocio)['mensaje'])
         return redirect('gestion_admin')
 
-    cita = get_object_or_404(Cita, id=cita_id)
+    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio)
     etapa = request.POST.get('etapa_seguimiento')
     nota = request.POST.get('nota_seguimiento', '').strip()
 
@@ -945,15 +1096,50 @@ def actualizar_seguimiento_cita_view(request, cita_id):
 
 
 @login_required
+def servicio_form_view(request, servicio_id=None):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
+    if licencia_bloqueada_para_operar(request.user):
+        messages.error(request, estado_licencia(negocio)['mensaje'])
+        return redirect('gestion_admin')
+
+    servicio = get_object_or_404(Servicio, id=servicio_id, negocio=negocio) if servicio_id else None
+    if request.method == 'POST':
+        form = ServicioForm(request.POST, instance=servicio)
+        if form.is_valid():
+            servicio_guardado = form.save(commit=False)
+            servicio_guardado.negocio = negocio
+            servicio_guardado.save()
+            accion = 'actualizado' if servicio else 'creado'
+            messages.success(request, f"Servicio {servicio_guardado.nombre} {accion} correctamente.")
+            return redirect('gestion_admin')
+    else:
+        form = ServicioForm(instance=servicio)
+
+    return render(request, 'servicio_form.html', {
+        'form': form,
+        'servicio': servicio,
+    })
+
+
+@login_required
+@require_POST
 def toggle_servicio_view(request, servicio_id):
     redirect_response = redirect_si_no_staff(request)
     if redirect_response:
         return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
     if licencia_bloqueada_para_operar(request.user):
-        messages.error(request, estado_licencia()['mensaje'])
+        messages.error(request, estado_licencia(negocio)['mensaje'])
         return redirect('gestion_admin')
 
-    servicio = get_object_or_404(Servicio, id=servicio_id)
+    servicio = get_object_or_404(Servicio, id=servicio_id, negocio=negocio)
     servicio.activo = not servicio.activo
     servicio.save()
     messages.info(request, f"Estado de {servicio.nombre} actualizado a {'Activo' if servicio.activo else 'Inactivo'}.")
@@ -968,16 +1154,18 @@ def registro_view(request):
     if request.method == 'POST':
         form = RegistroForm(request.POST)
         if form.is_valid():
+            negocio = negocio_para_request(request)
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
             user.save()
             PerfilCliente.objects.create(
                 usuario=user,
+                negocio=negocio,
                 telefono=form.cleaned_data.get('telefono', ''),
                 direccion=form.cleaned_data.get('direccion', ''),
             )
             login(request, user)
-            messages.success(request, f"Bienvenido a {obtener_configuracion_negocio()['name']}, {user.first_name or user.username}.")
+            messages.success(request, f"Bienvenido a {obtener_configuracion_negocio(negocio)['name']}, {user.first_name or user.username}.")
             return redirect('home')
     else:
         form = RegistroForm()

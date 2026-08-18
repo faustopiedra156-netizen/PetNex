@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
-from citas.models import Cita, Mascota, PerfilCliente, Servicio, Sucursal
+from citas.models import Cita, Mascota, Negocio, PerfilCliente, Servicio, Sucursal
 
 
 class Command(BaseCommand):
@@ -33,9 +33,15 @@ class Command(BaseCommand):
         else:
             cliente = User.objects.get(username='juanperez')
 
+        negocio, _ = Negocio.objects.get_or_create(
+            nombre=settings.BUSINESS_NAME,
+            defaults={'activo': True},
+        )
+
         PerfilCliente.objects.get_or_create(
             usuario=cliente,
             defaults={
+                'negocio': negocio,
                 'telefono': settings.BUSINESS_CONTACT_PHONE,
                 'direccion': settings.BUSINESS_ADDRESS,
                 'barrio': settings.BUSINESS_LOCATION_LABEL,
@@ -44,6 +50,7 @@ class Command(BaseCommand):
         )
 
         sucursal, _ = Sucursal.objects.get_or_create(
+            negocio=negocio,
             nombre=f"{settings.BUSINESS_SHORT_NAME} Principal",
             defaults={
                 'ciudad': settings.BUSINESS_CITY,
@@ -111,7 +118,7 @@ class Command(BaseCommand):
         ]
 
         for servicio_data in servicios_data:
-            Servicio.objects.get_or_create(nombre=servicio_data['nombre'], defaults=servicio_data)
+            Servicio.objects.get_or_create(negocio=negocio, nombre=servicio_data['nombre'], defaults=servicio_data)
 
         self.stdout.write(self.style.SUCCESS('Servicios del catalogo registrados.'))
 
@@ -143,19 +150,20 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS('Mascotas de prueba registradas.'))
 
-        servicio_corte = Servicio.objects.filter(nombre__icontains='Corte').first()
-        servicio_bano = Servicio.objects.filter(nombre__icontains='Bano').first()
+        servicio_corte = Servicio.objects.filter(negocio=negocio, nombre__icontains='Corte').first()
+        servicio_bano = Servicio.objects.filter(negocio=negocio, nombre__icontains='Bano').first()
 
         hoy = datetime.date.today()
         manana = hoy + datetime.timedelta(days=1)
         pasado = hoy + datetime.timedelta(days=2)
 
-        if not Cita.objects.filter(propietario=cliente).exists():
+        if not Cita.objects.filter(negocio=negocio, propietario=cliente).exists():
             Cita.objects.create(
+                negocio=negocio,
                 sucursal=sucursal,
                 propietario=cliente,
                 mascota=mascota_1,
-                servicio=servicio_corte or Servicio.objects.first(),
+                servicio=servicio_corte or Servicio.objects.filter(negocio=negocio).first(),
                 fecha=manana,
                 hora=datetime.time(10, 0),
                 estado='CONFIRMADA',
@@ -163,10 +171,11 @@ class Command(BaseCommand):
             )
 
             Cita.objects.create(
+                negocio=negocio,
                 sucursal=sucursal,
                 propietario=cliente,
                 mascota=mascota_2,
-                servicio=servicio_bano or Servicio.objects.first(),
+                servicio=servicio_bano or Servicio.objects.filter(negocio=negocio).first(),
                 fecha=pasado,
                 hora=datetime.time(15, 30),
                 estado='PENDIENTE',

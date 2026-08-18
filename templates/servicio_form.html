@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if servicio %}Editar servicio{% else %}Nuevo servicio{% endif %} - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="py-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-bold uppercase">
+                <span class="material-symbols-outlined text-sm">content_cut</span>
+                Catalogo
+            </span>
+            <h1 class="font-headline font-black text-3xl text-slate-900 mt-3">
+                {% if servicio %}Editar servicio{% else %}Nuevo servicio{% endif %}
+            </h1>
+            <p class="text-sm text-slate-500">Estos datos se muestran en la pagina de servicios y en el formulario para agendar citas.</p>
+        </div>
+        <a href="{% url 'gestion_admin' %}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50">
+            Volver al panel
+        </a>
+    </div>
+
+    <form method="post" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {{ form.non_field_errors.0 }}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">{{ form.nombre.label }}</span>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}<span class="text-xs text-red-600">{{ form.nombre.errors.0 }}</span>{% endif %}
+            </label>
+
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">{{ form.categoria.label }}</span>
+                {{ form.categoria }}
+                {% if form.categoria.errors %}<span class="text-xs text-red-600">{{ form.categoria.errors.0 }}</span>{% endif %}
+            </label>
+
+            <label class="block md:col-span-2">
+                <span class="block text-xs font-bold text-slate-600 mb-1">{{ form.descripcion.label }}</span>
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}<span class="text-xs text-red-600">{{ form.descripcion.errors.0 }}</span>{% endif %}
+            </label>
+
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">{{ form.precio.label }}</span>
+                <div class="flex items-center gap-2">
+                    <span class="h-11 min-w-11 px-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center font-black text-slate-700">
+                        {{ business.currency_symbol }}
+                    </span>
+                    {{ form.precio }}
+                </div>
+                {% if form.precio.errors %}<span class="text-xs text-red-600">{{ form.precio.errors.0 }}</span>{% endif %}
+            </label>
+
+            <label class="block">
+                <span class="block text-xs font-bold text-slate-600 mb-1">{{ form.duracion_minutos.label }}</span>
+                {{ form.duracion_minutos }}
+                {% if form.duracion_minutos.errors %}<span class="text-xs text-red-600">{{ form.duracion_minutos.errors.0 }}</span>{% endif %}
+            </label>
+
+            <label class="block md:col-span-2">
+                <span class="block text-xs font-bold text-slate-600 mb-1">{{ form.icono.label }}</span>
+                {{ form.icono }}
+                <span class="block text-xs text-slate-500 mt-1">Usa nombres de Material Symbols, por ejemplo: content_cut, pets, shower, health_and_safety.</span>
+                {% if form.icono.errors %}<span class="text-xs text-red-600">{{ form.icono.errors.0 }}</span>{% endif %}
+            </label>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                {{ form.destacado }}
+                <span class="text-sm font-semibold text-slate-700">Mostrar como servicio destacado</span>
+            </label>
+            <label class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                {{ form.activo }}
+                <span class="text-sm font-semibold text-slate-700">Visible en catalogo y agenda</span>
+            </label>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-end gap-3">
+            <a href="{% url 'gestion_admin' %}" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-center hover:bg-slate-50">
+                Cancelar
+            </a>
+            <button class="px-6 py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800">
+                Guardar servicio
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

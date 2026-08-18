@@ -51,9 +51,12 @@
                             <a href="{% url 'editar_mascota' mascota.id %}" class="p-2 text-slate-500 hover:text-[#00685f] hover:bg-teal-50 rounded-lg transition" title="Editar">
                                 <span class="material-symbols-outlined text-lg">edit</span>
                             </a>
-                            <a href="{% url 'eliminar_mascota' mascota.id %}" onclick="return confirm('¿Eliminar registro de {{ mascota.nombre }}?')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Eliminar">
-                                <span class="material-symbols-outlined text-lg">delete</span>
-                            </a>
+                            <form method="post" action="{% url 'eliminar_mascota' mascota.id %}" onsubmit="return confirm('Eliminar registro de {{ mascota.nombre }}?')">
+                                {% csrf_token %}
+                                <button type="submit" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Eliminar">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>

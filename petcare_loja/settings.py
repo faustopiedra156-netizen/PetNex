@@ -179,6 +179,8 @@ ACCOUNT_LOGIN_BY_CODE_ENABLED = False
 ACCOUNT_LOGIN_BY_CODE_REQUIRED = False
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_ADAPTER = 'citas.adapters.PetNexoSocialAccountAdapter'
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -188,6 +190,7 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
         'AUTH_PARAMS': {
             'access_type': 'online',
+            'prompt': 'select_account',
         },
         'OAUTH_PKCE_ENABLED': True,
     }
