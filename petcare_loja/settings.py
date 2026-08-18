@@ -30,6 +30,19 @@ def env_int(name, default):
         return default
 
 
+def env_int_list(name, default=''):
+    values = []
+    for item in os.getenv(name, default).split(','):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            values.append(int(item))
+        except ValueError:
+            continue
+    return values
+
+
 SECRET_KEY = os.getenv(
     'SECRET_KEY',
     os.getenv('DJANGO_SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
@@ -202,6 +215,14 @@ DATAFAST_AUTHORIZATION = os.getenv('DATAFAST_AUTHORIZATION', '')
 DATAFAST_BRANDS = os.getenv('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
 DATAFAST_TIMEOUT_SECONDS = env_int('DATAFAST_TIMEOUT_SECONDS', 20)
 GOOGLE_LOGIN_ENABLED = env_bool('GOOGLE_LOGIN_ENABLED', False)
+
+APPOINTMENT_OPEN_TIME = os.getenv('APPOINTMENT_OPEN_TIME', '08:30')
+APPOINTMENT_CLOSE_TIME = os.getenv('APPOINTMENT_CLOSE_TIME', '18:30')
+APPOINTMENT_SLOT_MINUTES = env_int('APPOINTMENT_SLOT_MINUTES', 30)
+APPOINTMENT_CLOSED_WEEKDAYS = env_int_list('APPOINTMENT_CLOSED_WEEKDAYS', '6')
+HOME_FEATURED_SERVICES_LIMIT = env_int('HOME_FEATURED_SERVICES_LIMIT', 4)
+HOME_SERVICES_LIMIT = env_int('HOME_SERVICES_LIMIT', 6)
+ADMIN_TODAY_APPOINTMENTS_LIMIT = env_int('ADMIN_TODAY_APPOINTMENTS_LIMIT', 8)
 
 TRANSFER_BANK_NAME = os.getenv('TRANSFER_BANK_NAME', 'Banco Pichincha')
 TRANSFER_ACCOUNT_NUMBER = os.getenv('TRANSFER_ACCOUNT_NUMBER', '0000000000')

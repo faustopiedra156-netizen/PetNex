@@ -40,13 +40,23 @@ ESCALA_CALIFICACION = [
 DATAFAST_RESULT_OK_PATTERN = re.compile(r'^(000\.000\.|000\.100\.1|000\.[36])')
 
 
+def parse_hora_config(valor, default):
+    try:
+        return datetime.time.fromisoformat(str(valor))
+    except (TypeError, ValueError):
+        return default
+
+
 def generar_horarios_disponibilidad():
     horarios = []
-    hora = datetime.datetime.combine(datetime.date.today(), datetime.time(8, 30))
-    cierre = datetime.datetime.combine(datetime.date.today(), datetime.time(18, 30))
+    apertura = parse_hora_config(settings.APPOINTMENT_OPEN_TIME, datetime.time(8, 30))
+    cierre_config = parse_hora_config(settings.APPOINTMENT_CLOSE_TIME, datetime.time(18, 30))
+    slot_minutos = max(int(settings.APPOINTMENT_SLOT_MINUTES or 30), 1)
+    hora = datetime.datetime.combine(datetime.date.today(), apertura)
+    cierre = datetime.datetime.combine(datetime.date.today(), cierre_config)
     while hora <= cierre:
         horarios.append(hora.time())
-        hora += datetime.timedelta(minutes=30)
+        hora += datetime.timedelta(minutes=slot_minutos)
     return horarios
 
 
@@ -98,8 +108,8 @@ def licencia_bloqueada_para_operar(user):
     return not licencia['activa'] and not user.is_superuser
 
 
-def datos_transferencia():
-    negocio = obtener_configuracion_negocio()
+def datos_transferencia(negocio_obj=None):
+    negocio = obtener_configuracion_negocio(negocio_obj)
     return {
         'banco': settings.TRANSFER_BANK_NAME,
         'cuenta': settings.TRANSFER_ACCOUNT_NUMBER,
@@ -140,10 +150,10 @@ def home_view(request):
     try:
         servicios_destacados = Servicio.objects.filter(negocio=negocio, activo=True, destacado=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
-        )[:4]
+        )[:settings.HOME_FEATURED_SERVICES_LIMIT]
         servicios_todos = Servicio.objects.filter(negocio=negocio, activo=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
-        )[:6]
+        )[:settings.HOME_SERVICES_LIMIT]
         mascotas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').values('mascota_id').distinct().count()
         total_citas_operativas = Cita.objects.filter(negocio=negocio).exclude(estado='CANCELADA').count()
         citas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').count()
@@ -441,7 +451,7 @@ def pagar_cita_view(request, cita_id):
         messages.info(request, "Esta cita ya se encuentra pagada.")
         return redirect('mis_citas')
 
-    transferencia = datos_transferencia()
+    transferencia = datos_transferencia(negocio)
 
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago')
@@ -703,7 +713,7 @@ def gestion_admin_view(request):
     if sucursal_filtro and sucursal_filtro != 'TODAS' and sucursal_filtro.isdigit():
         citas = citas.filter(sucursal_id=sucursal_filtro)
 
-    servicios = Servicio.objects.filter(negocio=negocio).only('nombre', 'precio', 'duracion_minutos', 'activo')
+    servicios = Servicio.objects.filter(negocio=negocio).only('nombre', 'categoria', 'precio', 'duracion_minutos', 'activo')
     sucursales = Sucursal.objects.filter(negocio=negocio, activa=True).only('nombre', 'ciudad')
     hoy = timezone.localdate()
     inicio_mes = hoy.replace(day=1)
@@ -719,7 +729,7 @@ def gestion_admin_view(request):
     ingresos = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').aggregate(total=Sum('servicio__precio'))['total'] or 0
     ingresos_mes = Cita.objects.filter(negocio=negocio, estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('servicio__precio'))['total'] or 0
     promedio_calificacion = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
-    citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio, fecha=hoy).order_by('sucursal__nombre', 'hora')[:8]
+    citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio, fecha=hoy).order_by('sucursal__nombre', 'hora')[:settings.ADMIN_TODAY_APPOINTMENTS_LIMIT]
     licencia = estado_licencia(negocio)
 
     context = {

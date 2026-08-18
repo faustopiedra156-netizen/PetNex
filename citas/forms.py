@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth.models import User
 from .models import (
     Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio,
@@ -6,9 +7,18 @@ from .models import (
 )
 import datetime
 
-HORA_APERTURA = datetime.time(8, 30)
-HORA_CIERRE = datetime.time(18, 30)
-MINUTOS_PERMITIDOS = {0, 30}
+def parse_hora_config(valor, default):
+    try:
+        return datetime.time.fromisoformat(str(valor))
+    except (TypeError, ValueError):
+        return default
+
+
+HORA_APERTURA = parse_hora_config(settings.APPOINTMENT_OPEN_TIME, datetime.time(8, 30))
+HORA_CIERRE = parse_hora_config(settings.APPOINTMENT_CLOSE_TIME, datetime.time(18, 30))
+SLOT_MINUTES = max(int(settings.APPOINTMENT_SLOT_MINUTES or 30), 1)
+MINUTOS_PERMITIDOS = set(range(0, 60, SLOT_MINUTES))
+DIAS_CERRADOS = set(settings.APPOINTMENT_CLOSED_WEEKDAYS)
 
 
 def generar_horarios():
@@ -18,7 +28,7 @@ def generar_horarios():
     while hora <= cierre:
         value = hora.time().strftime('%H:%M')
         horarios.append((value, value))
-        hora += datetime.timedelta(minutes=30)
+        hora += datetime.timedelta(minutes=SLOT_MINUTES)
     return horarios
 
 
@@ -74,16 +84,16 @@ class CitaForm(forms.ModelForm):
         fecha = self.cleaned_data['fecha']
         if fecha < datetime.date.today():
             raise forms.ValidationError("No puedes agendar una cita en una fecha pasada.")
-        if fecha.weekday() == 6:
-            raise forms.ValidationError("No atendemos los domingos. Elige una fecha de lunes a sábado.")
+        if fecha.weekday() in DIAS_CERRADOS:
+            raise forms.ValidationError("El negocio no atiende en la fecha seleccionada. Elige otro dia.")
         return fecha
 
     def clean_hora(self):
         hora = self.cleaned_data['hora']
         if hora < HORA_APERTURA or hora > HORA_CIERRE:
-            raise forms.ValidationError("El horario de atención es de 08:30 a 18:30.")
+            raise forms.ValidationError(f"El horario de atencion es de {HORA_APERTURA.strftime('%H:%M')} a {HORA_CIERRE.strftime('%H:%M')}.")
         if hora.minute not in MINUTOS_PERMITIDOS:
-            raise forms.ValidationError("Agenda en bloques de 30 minutos, por ejemplo 09:00 o 09:30.")
+            raise forms.ValidationError(f"Agenda en bloques de {SLOT_MINUTES} minutos.")
         return hora
 
     def clean(self):
