@@ -122,7 +122,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'petcare_loja.wsgi.application'
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+USE_SQLITE_LOCAL = env_bool('USE_SQLITE_LOCAL', False)
+DATABASE_URL = '' if USE_SQLITE_LOCAL else os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
     DATABASES = {
