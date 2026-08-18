@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -214,7 +215,7 @@ class ConfiguracionNegocio(models.Model):
             'location_label': self.etiqueta_ubicacion,
             'primary_cta': self.texto_boton_principal,
             'show_demo_accounts': self.mostrar_cuentas_demo,
-            'google_login_enabled': self.google_login_activo,
+            'google_login_enabled': self.google_login_activo or settings.GOOGLE_LOGIN_ENABLED,
             'transaction_prefix': self.prefijo_transaccion,
         }
 
