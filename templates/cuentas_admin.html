@@ -11,7 +11,7 @@
                 Dueño PetNexo
             </span>
             <h1 class="font-headline font-black text-3xl text-slate-900 mt-3">Cuentas del sistema</h1>
-            <p class="text-sm text-slate-500">Crea administradores para cada local. Los clientes finales se registran solos desde la pagina publica o con Google.</p>
+            <p class="text-sm text-slate-500">Crea administradores para cada local. Los clientes finales se registran solos desde la página publica o con Google.</p>
         </div>
         <a href="{% url 'gestion_admin' %}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50">
             Volver al panel
@@ -23,7 +23,7 @@
             {% csrf_token %}
             <div>
                 <h2 class="font-headline font-black text-xl text-slate-900">Crear administrador del local</h2>
-                <p class="text-sm text-slate-500 mt-1">Esta cuenta sera para el dueño de la clinica, veterinaria o peluqueria.</p>
+                <p class="text-sm text-slate-500 mt-1">Esta cuenta sera para el dueño de la clinica, veterinaria o peluquería.</p>
             </div>
 
             {% if form.non_field_errors %}
@@ -65,12 +65,12 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label class="block">
-                    <span class="block text-xs font-bold text-slate-600 mb-1">Telefono / WhatsApp</span>
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Teléfono / WhatsApp</span>
                     {{ form.telefono }}
                     {% if form.telefono.errors %}<span class="text-xs text-red-600">{{ form.telefono.errors.0 }}</span>{% endif %}
                 </label>
                 <label class="block">
-                    <span class="block text-xs font-bold text-slate-600 mb-1">Direccion</span>
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Dirección</span>
                     {{ form.direccion }}
                     {% if form.direccion.errors %}<span class="text-xs text-red-600">{{ form.direccion.errors.0 }}</span>{% endif %}
                 </label>
@@ -78,13 +78,23 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label class="block">
-                    <span class="block text-xs font-bold text-slate-600 mb-1">Contrasena temporal</span>
-                    {{ form.password }}
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Contraseña temporal</span>
+                    <div class="relative">
+                        {{ form.password }}
+                        <button type="button" class="password-toggle absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-[#00685f]" data-target="adminPasswordInput" aria-label="Mostrar contraseña temporal">
+                            <span class="material-symbols-outlined text-xl">visibility</span>
+                        </button>
+                    </div>
                     {% if form.password.errors %}<span class="text-xs text-red-600">{{ form.password.errors.0 }}</span>{% endif %}
                 </label>
                 <label class="block">
-                    <span class="block text-xs font-bold text-slate-600 mb-1">Confirmar contrasena</span>
-                    {{ form.confirm_password }}
+                    <span class="block text-xs font-bold text-slate-600 mb-1">Confirmar contraseña</span>
+                    <div class="relative">
+                        {{ form.confirm_password }}
+                        <button type="button" class="password-toggle absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-[#00685f]" data-target="adminConfirmPasswordInput" aria-label="Mostrar confirmacion de contraseña">
+                            <span class="material-symbols-outlined text-xl">visibility</span>
+                        </button>
+                    </div>
                     {% if form.confirm_password.errors %}<span class="text-xs text-red-600">{{ form.confirm_password.errors.0 }}</span>{% endif %}
                 </label>
             </div>
@@ -104,7 +114,17 @@
                                 <p class="font-bold text-white">{{ usuario.get_full_name|default:usuario.username }}</p>
                                 <p class="text-xs text-slate-300">{{ usuario.email|default:"Sin correo" }} - {{ usuario.username }}</p>
                             </div>
-                            <span class="px-3 py-1 rounded-full bg-white text-slate-900 text-xs font-black">PetNexo</span>
+                            <div class="flex items-center gap-2">
+                                <span class="px-3 py-1 rounded-full bg-white text-slate-900 text-xs font-black">PetNexo</span>
+                                {% if usuario.id != request.user.id %}
+                                    <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" onsubmit="return confirm('Seguro que deseas eliminar esta cuenta de PetNexo? Esta accion no se puede deshacer.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-9 h-9 rounded-full bg-red-500/15 text-red-200 hover:bg-red-500 hover:text-white transition flex items-center justify-center" aria-label="Eliminar cuenta">
+                                            <span class="material-symbols-outlined text-lg">delete</span>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
                         </div>
                     {% empty %}
                         <p class="text-sm text-slate-500">No hay dueño PetNexo configurado.</p>
@@ -126,7 +146,15 @@
                                     {% endwith %}
                                 </p>
                             </div>
-                            <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black">Admin local</span>
+                            <div class="flex items-center gap-2">
+                                <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black">Admin local</span>
+                                <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" onsubmit="return confirm('Seguro que deseas eliminar este administrador local? Tambien se eliminaran sus datos asociados.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-9 h-9 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition flex items-center justify-center" aria-label="Eliminar cuenta">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     {% empty %}
                         <p class="text-sm text-slate-500">Todavia no hay administradores del local.</p>
@@ -144,7 +172,15 @@
                                 <p class="font-bold text-slate-900">{{ usuario.get_full_name|default:usuario.username }}</p>
                                 <p class="text-xs text-slate-500">{{ usuario.email|default:"Sin correo" }} - {{ usuario.username }}</p>
                             </div>
-                            <span class="px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-black">Cliente</span>
+                            <div class="flex items-center gap-2">
+                                <span class="px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-black">Cliente</span>
+                                <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" onsubmit="return confirm('Seguro que deseas eliminar este cliente? Se eliminará también su información asociada.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-9 h-9 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition flex items-center justify-center" aria-label="Eliminar cuenta">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     {% empty %}
                         <p class="text-sm text-slate-500">Todavia no hay clientes registrados.</p>
@@ -154,4 +190,19 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.querySelectorAll('.password-toggle').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const input = document.getElementById(button.dataset.target);
+            const icon = button.querySelector('.material-symbols-outlined');
+            if (!input || !icon) return;
+
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            icon.textContent = isHidden ? 'visibility_off' : 'visibility';
+            button.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        });
+    });
+</script>
 {% endblock %}

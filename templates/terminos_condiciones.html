@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Terminos y condiciones - {{ business.app_name }}{% endblock %}
+
+{% block content %}
+<section class="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-black uppercase">
+            <span class="material-symbols-outlined text-sm">gavel</span>
+            Condiciones
+        </span>
+        <h1 class="font-headline font-black text-3xl text-slate-900 mt-4">Terminos y condiciones</h1>
+        <p class="text-sm text-slate-500 mt-2">Ultima actualizacion: agosto de 2026</p>
+
+        <div class="mt-8 space-y-6 text-sm leading-7 text-slate-600">
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Uso del sistema</h2>
+                <p>{{ business.app_name }} es una plataforma para administrar servicios, citas, clientes, mascotas, sucursales, pagos y seguimiento de atención.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Cuentas y responsabilidades</h2>
+                <p>Los administradores del local son responsables de mantener actualizada la información de servicios, horarios, sucursales, precios y estados de citas.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Reservas y cancelaciones</h2>
+                <p>Las citas dependen de disponibilidad real del local. El negocio puede confirmar, reprogramar o cancelar reservas segun su operación.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Pagos</h2>
+                <p>Los montos, métodos de pago, reembolsos y comprobantes son responsabilidad del negocio que opera la cuenta. Los pagos en linea dependen del proveedor configurado.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Soporte</h2>
+                <p>Para soporte o solicitudes relacionadas con el servicio, comúnicate a {{ business.email }}.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

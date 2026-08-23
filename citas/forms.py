@@ -32,6 +32,12 @@ def generar_horarios():
     return horarios
 
 
+def generar_horarios_sucursal(sucursal):
+    if sucursal:
+        return [(hora.strftime('%H:%M'), hora.strftime('%H:%M')) for hora in sucursal.generar_horarios()]
+    return generar_horarios()
+
+
 class MascotaForm(forms.ModelForm):
     class Meta:
         model = Mascota
@@ -65,6 +71,7 @@ class CitaForm(forms.ModelForm):
         self.user = user
         self.negocio = negocio
         super().__init__(*args, **kwargs)
+        self.fields['fecha'].widget.attrs['min'] = datetime.date.today().isoformat()
         if user and user.is_authenticated:
             self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).select_related('propietario').only('nombre', 'raza', 'propietario__username', 'propietario__first_name', 'propietario__last_name')
         sucursales = Sucursal.objects.filter(activa=True)
@@ -74,26 +81,36 @@ class CitaForm(forms.ModelForm):
             servicios = servicios.filter(negocio=negocio)
         self.fields['sucursal'].queryset = sucursales.only('nombre', 'ciudad', 'direccion')
         self.fields['servicio'].queryset = servicios.only('nombre', 'precio')
-        self.fields['sucursal'].error_messages['required'] = "Selecciona la sucursal donde se atendera la mascota."
+        self.fields['sucursal'].error_messages['required'] = "Selecciona la sucursal donde se atender\u00e1 la mascota."
         self.fields['mascota'].error_messages['required'] = "Selecciona una mascota registrada."
         self.fields['servicio'].error_messages['required'] = "Selecciona el servicio que deseas reservar."
-        self.fields['fecha'].error_messages['required'] = "Selecciona la fecha de atencion."
+        self.fields['fecha'].error_messages['required'] = "Selecciona la fecha de atenci\u00f3n."
         self.fields['hora'].error_messages['required'] = "Selecciona una hora disponible en la agenda."
 
     def clean_fecha(self):
         fecha = self.cleaned_data['fecha']
         if fecha < datetime.date.today():
             raise forms.ValidationError("No puedes agendar una cita en una fecha pasada.")
-        if fecha.weekday() in DIAS_CERRADOS:
-            raise forms.ValidationError("El negocio no atiende en la fecha seleccionada. Elige otro dia.")
+        sucursal = self.cleaned_data.get('sucursal')
+        if sucursal and not sucursal.atiende_en_fecha(fecha):
+            raise forms.ValidationError("La sucursal no atiende en la fecha seleccionada. Elige otro d\u00eda.")
+        if not sucursal and fecha.weekday() in DIAS_CERRADOS:
+            raise forms.ValidationError("El negocio no atiende en la fecha seleccionada. Elige otro d\u00eda.")
         return fecha
 
     def clean_hora(self):
         hora = self.cleaned_data['hora']
-        if hora < HORA_APERTURA or hora > HORA_CIERRE:
-            raise forms.ValidationError(f"El horario de atencion es de {HORA_APERTURA.strftime('%H:%M')} a {HORA_CIERRE.strftime('%H:%M')}.")
-        if hora.minute not in MINUTOS_PERMITIDOS:
-            raise forms.ValidationError(f"Agenda en bloques de {SLOT_MINUTES} minutos.")
+        sucursal = self.cleaned_data.get('sucursal')
+        if sucursal:
+            horarios_permitidos = set(sucursal.generar_horarios())
+            apertura = sucursal.hora_apertura
+            cierre = sucursal.hora_cierre
+        else:
+            horarios_permitidos = {datetime.time.fromisoformat(value) for value, _ in generar_horarios()}
+            apertura = HORA_APERTURA
+            cierre = HORA_CIERRE
+        if hora not in horarios_permitidos:
+            raise forms.ValidationError(f"Selecciona un horario disponible entre {apertura.strftime('%H:%M')} y {cierre.strftime('%H:%M')}.")
         return hora
 
     def clean(self):
@@ -106,16 +123,16 @@ class CitaForm(forms.ModelForm):
             if self.instance and self.instance.pk:
                 existe = existe.exclude(pk=self.instance.pk)
             if existe.exists():
-                raise forms.ValidationError("Ese horario ya esta ocupado en la sucursal seleccionada. Elige otra hora.")
+                raise forms.ValidationError("Ese horario ya est\u00e1 ocupado en la sucursal seleccionada. Elige otra hora.")
         return cleaned_data
 
 
 class AdminUsuarioForm(forms.ModelForm):
     negocio_nombre = forms.CharField(widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Ej. Happy Pets Quito'}))
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': '+593 99 999 9999'}))
-    direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Direccion de referencia'}))
-    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Contrasena temporal'}))
-    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Confirmar contrasena'}))
+    direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Direcci\u00f3n de referencia'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'id': 'adminPasswordInput', 'class': 'w-full px-4 py-2.5 pr-12 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Contrase\u00f1a temporal'}))
+    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'id': 'adminConfirmPasswordInput', 'class': 'w-full px-4 py-2.5 pr-12 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Confirmar contrase\u00f1a'}))
 
     class Meta:
         model = User
@@ -142,7 +159,7 @@ class AdminUsuarioForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         if cleaned_data.get('password') != cleaned_data.get('confirm_password'):
-            raise forms.ValidationError("Las contrasenas no coinciden.")
+            raise forms.ValidationError("Las contrase\u00f1as no coinciden.")
         return cleaned_data
 
     def save(self, commit=True):
@@ -175,7 +192,7 @@ class ServicioForm(forms.ModelForm):
         model = Servicio
         fields = ['nombre', 'categoria', 'descripcion', 'precio', 'duracion_minutos', 'icono', 'destacado', 'activo']
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Ej. Bano & Spa Canino Pro'}),
+            'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Ej. Baño & Spa Canino Pro'}),
             'categoria': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none bg-white'}),
             'descripcion': forms.Textarea(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'rows': 4, 'placeholder': 'Describe lo que incluye el servicio.'}),
             'precio': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'min': '0', 'step': '0.01'}),
@@ -184,6 +201,49 @@ class ServicioForm(forms.ModelForm):
             'destacado': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
             'activo': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
         }
+
+
+class SucursalForm(forms.ModelForm):
+    class Meta:
+        model = Sucursal
+        fields = ['nombre', 'ciudad', 'direccion', 'telefono', 'hora_apertura', 'hora_cierre', 'intervalo_turnos', 'dias_cerrados', 'activa']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Ej. Sucursal norte'}),
+            'ciudad': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Loja'}),
+            'direccion': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': 'Direcci\u00f3n exacta'}),
+            'telefono': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': '+593 99 999 9999'}),
+            'hora_apertura': forms.TimeInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'type': 'time'}),
+            'hora_cierre': forms.TimeInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'type': 'time'}),
+            'intervalo_turnos': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'min': '5', 'step': '5'}),
+            'dias_cerrados': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] outline-none', 'placeholder': '6'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'h-4 w-4 rounded border-slate-300 text-[#00685f]'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        apertura = cleaned_data.get('hora_apertura')
+        cierre = cleaned_data.get('hora_cierre')
+        if apertura and cierre and apertura >= cierre:
+            raise forms.ValidationError("La hora de apertura debe ser menor que la hora de cierre.")
+        return cleaned_data
+
+    def clean_intervalo_turnos(self):
+        intervalo = self.cleaned_data['intervalo_turnos']
+        if intervalo < 5 or intervalo > 180:
+            raise forms.ValidationError("El intervalo debe estar entre 5 y 180 minutos.")
+        return intervalo
+
+    def clean_dias_cerrados(self):
+        valor = self.cleaned_data.get('dias_cerrados', '')
+        dias = []
+        for item in str(valor).split(','):
+            item = item.strip()
+            if not item:
+                continue
+            if not item.isdigit() or int(item) not in range(7):
+                raise forms.ValidationError("Usa n\u00fameros del 0 al 6 separados por coma.")
+            dias.append(str(int(item)))
+        return ','.join(dict.fromkeys(dias))
 
 
 class PerfilClienteForm(forms.ModelForm):
@@ -207,7 +267,7 @@ class PerfilClienteForm(forms.ModelForm):
         fields = ['telefono', 'direccion', 'barrio', 'contacto_preferido']
         widgets = {
             'telefono': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': '+593 99 999 9999'}),
-            'direccion': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Dirección de referencia'}),
+            'direccion': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Direcci\u00f3n de referencia'}),
             'barrio': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Barrio o sector'}),
             'contacto_preferido': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]'}),
         }
@@ -292,16 +352,16 @@ class CalificacionForm(forms.ModelForm):
             'comentario': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition',
                 'rows': 4,
-                'placeholder': 'Cuéntanos cómo fue la atención, el resultado del corte o cualquier detalle importante.',
+                'placeholder': 'Cu\u00e9ntanos c\u00f3mo fue la atenci\u00f3n, el resultado del corte o cualquier detalle importante.',
             }),
         }
 
 
 class RegistroForm(forms.ModelForm):
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': '+593 99 999 9999'}))
-    direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Direccion de referencia'}))
-    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Contraseña'}))
-    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Confirmar Contraseña'}))
+    direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Direcci\u00f3n de referencia'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Contrase\u00f1a'}))
+    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Confirmar Contrase\u00f1a'}))
 
     class Meta:
         model = User
@@ -318,5 +378,5 @@ class RegistroForm(forms.ModelForm):
         password = cleaned_data.get("password")
         confirm_password = cleaned_data.get("confirm_password")
         if password != confirm_password:
-            raise forms.ValidationError("Las contraseñas no coinciden.")
+            raise forms.ValidationError("Las contrase\u00f1as no coinciden.")
         return cleaned_data

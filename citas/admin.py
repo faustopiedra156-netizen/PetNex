@@ -39,9 +39,9 @@ class ConfiguracionNegocioAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'negocio', 'ciudad', 'telefono', 'email', 'actualizado_en')
     fieldsets = (
         ('Identidad', {'fields': ('negocio', 'nombre', 'nombre_corto', 'categoria', 'slogan')}),
-        ('Ubicacion y contacto', {'fields': ('ciudad', 'pais', 'codigo_pais', 'direccion', 'telefono', 'email', 'horario')}),
-        ('Pagina publica', {'fields': ('hero_badge', 'hero_titulo', 'hero_descripcion', 'descripcion_footer', 'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal')}),
-        ('Operacion', {'fields': ('moneda', 'simbolo_moneda', 'prefijo_transaccion', 'mostrar_cuentas_demo', 'google_login_activo')}),
+        ('Ubicación y contacto', {'fields': ('ciudad', 'pais', 'codigo_pais', 'direccion', 'telefono', 'email', 'horario')}),
+        ('Página pública', {'fields': ('hero_badge', 'hero_titulo', 'hero_descripcion', 'descripcion_footer', 'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal')}),
+        ('Operación', {'fields': ('moneda', 'simbolo_moneda', 'prefijo_transaccion', 'mostrar_cuentas_demo', 'google_login_activo')}),
     )
 
 @admin.register(Servicio)
@@ -53,7 +53,7 @@ class ServicioAdmin(admin.ModelAdmin):
 
 @admin.register(Sucursal)
 class SucursalAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'negocio', 'ciudad', 'direccion', 'telefono', 'activa')
+    list_display = ('nombre', 'negocio', 'ciudad', 'hora_apertura', 'hora_cierre', 'intervalo_turnos', 'dias_cerrados', 'activa')
     list_filter = ('negocio', 'activa', 'ciudad')
     search_fields = ('nombre', 'ciudad', 'direccion', 'negocio__nombre')
 

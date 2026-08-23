@@ -1,3 +1,5 @@
+import datetime
+
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
@@ -152,21 +154,21 @@ class ConfiguracionNegocio(models.Model):
     ciudad = models.CharField(max_length=80, default='Loja')
     pais = models.CharField(max_length=80, default='Ecuador')
     codigo_pais = models.CharField(max_length=2, default='EC')
-    categoria = models.CharField(max_length=120, default='peluqueria y estetica para mascotas')
+    categoria = models.CharField(max_length=120, default='peluquer\u00eda y est\u00e9tica para mascotas')
     slogan = models.CharField(max_length=160, default='Cuidado profesional para mascotas')
-    hero_badge = models.CharField(max_length=180, default='Peluqueria y estetica para mascotas')
-    hero_titulo = models.CharField(max_length=180, default='Bano, corte y carino para tu mascota.')
-    hero_descripcion = models.TextField(default='Servicios de higiene y cuidado estetico con atencion personalizada.')
+    hero_badge = models.CharField(max_length=180, default='Peluquer\u00eda y est\u00e9tica para mascotas')
+    hero_titulo = models.CharField(max_length=180, default='Ba\u00f1o, corte y cari\u00f1o para tu mascota.')
+    hero_descripcion = models.TextField(default='Servicios de higiene y cuidado est\u00e9tico con atenci\u00f3n personalizada.')
     contacto_titulo = models.CharField(max_length=180, default='Estamos listos para atender a tu mascota')
     contacto_descripcion = models.TextField(default='Escribenos para consultar disponibilidad, servicios especiales o cuidados antes de una cita.')
-    descripcion_footer = models.TextField(default='Centro especializado en estetica, peluqueria y spa para mascotas.')
+    descripcion_footer = models.TextField(default='Centro especializado en est\u00e9tica, peluquer\u00eda y spa para mascotas.')
     email = models.EmailField(default='contacto@negocio.com')
     telefono = models.CharField(max_length=30, default='+593 99 999 9999')
     direccion = models.CharField(max_length=180, default='Direccion del local')
     horario = models.CharField(max_length=120, default='Lun - Sab: 08:30 - 18:30')
     moneda = models.CharField(max_length=10, default='USD')
     simbolo_moneda = models.CharField(max_length=5, default='$')
-    etiqueta_resenas = models.CharField(max_length=80, default='Resenas de clientes')
+    etiqueta_resenas = models.CharField(max_length=80, default='Rese\u00f1as de clientes')
     etiqueta_ubicacion = models.CharField(max_length=80, default='Centro')
     texto_boton_principal = models.CharField(max_length=80, default='Agendar cita')
     prefijo_transaccion = models.CharField(max_length=30, default='NEGOCIO')
@@ -215,14 +217,14 @@ class ConfiguracionNegocio(models.Model):
             'location_label': self.etiqueta_ubicacion,
             'primary_cta': self.texto_boton_principal,
             'show_demo_accounts': self.mostrar_cuentas_demo,
-            'google_login_enabled': self.google_login_activo or settings.GOOGLE_LOGIN_ENABLED,
+            'google_login_enabled': (self.google_login_activo or settings.GOOGLE_LOGIN_ENABLED) and settings.GOOGLE_LOGIN_CONFIGURED,
             'transaction_prefix': self.prefijo_transaccion,
         }
 
 class Servicio(models.Model):
     CATEGORIAS = [
-        ('peluqueria', 'Peluquería & Estética'),
-        ('bano', 'Baño & Spa'),
+        ('peluqueria', 'Peluquer\u00eda & Est\u00e9tica'),
+        ('bano', 'Ba\u00f1o & Spa'),
         ('salud', 'Salud & Higiene'),
         ('especial', 'Tratamientos Especiales'),
     ]
@@ -235,13 +237,13 @@ class Servicio(models.Model):
         verbose_name="Negocio",
     )
     nombre = models.CharField(max_length=100, verbose_name="Nombre del Servicio")
-    descripcion = models.TextField(verbose_name="Descripción detallada")
-    categoria = models.CharField(max_length=50, choices=CATEGORIAS, default='peluqueria', verbose_name="Categoría")
+    descripcion = models.TextField(verbose_name="Descripci\u00f3n detallada")
+    categoria = models.CharField(max_length=50, choices=CATEGORIAS, default='peluqueria', verbose_name="Categor\u00eda")
     precio = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="Precio ($ USD)")
-    duracion_minutos = models.PositiveIntegerField(default=45, verbose_name="Duración estimada (minutos)")
+    duracion_minutos = models.PositiveIntegerField(default=45, verbose_name="Duraci\u00f3n estimada (minutos)")
     icono = models.CharField(max_length=50, default='content_cut', verbose_name="Icono")
     destacado = models.BooleanField(default=False, verbose_name="Servicio Destacado")
-    activo = models.BooleanField(default=True, verbose_name="Activo en catálogo")
+    activo = models.BooleanField(default=True, verbose_name="Activo en cat\u00e1logo")
 
     class Meta:
         verbose_name = "Servicio"
@@ -253,6 +255,16 @@ class Servicio(models.Model):
 
 
 class Sucursal(models.Model):
+    DIAS_SEMANA = [
+        (0, 'Lunes'),
+        (1, 'Martes'),
+        (2, 'Miercoles'),
+        (3, 'Jueves'),
+        (4, 'Viernes'),
+        (5, 'Sabado'),
+        (6, 'Domingo'),
+    ]
+
     negocio = models.ForeignKey(
         Negocio,
         on_delete=models.CASCADE,
@@ -265,6 +277,16 @@ class Sucursal(models.Model):
     ciudad = models.CharField(max_length=80, verbose_name="Ciudad")
     direccion = models.CharField(max_length=180, verbose_name="Direccion")
     telefono = models.CharField(max_length=30, blank=True, verbose_name="Telefono")
+    hora_apertura = models.TimeField(default='08:30', verbose_name="Hora de apertura")
+    hora_cierre = models.TimeField(default='18:30', verbose_name="Hora de cierre")
+    intervalo_turnos = models.PositiveIntegerField(default=30, verbose_name="Intervalo de turnos en minutos")
+    dias_cerrados = models.CharField(
+        max_length=30,
+        default='6',
+        blank=True,
+        verbose_name="Dias cerrados",
+        help_text="Numeros separados por coma: 0=lunes, 1=martes, 2=miercoles, 3=jueves, 4=viernes, 5=sabado, 6=domingo.",
+    )
     activa = models.BooleanField(default=True, verbose_name="Activa")
     creada_en = models.DateTimeField(auto_now_add=True)
 
@@ -276,13 +298,38 @@ class Sucursal(models.Model):
     def __str__(self):
         return f"{self.nombre} - {self.ciudad}"
 
+    def dias_cerrados_set(self):
+        dias = set()
+        for item in str(self.dias_cerrados or '').split(','):
+            item = item.strip()
+            if not item:
+                continue
+            try:
+                dias.add(int(item))
+            except ValueError:
+                continue
+        return dias
+
+    def atiende_en_fecha(self, fecha):
+        return fecha.weekday() not in self.dias_cerrados_set()
+
+    def generar_horarios(self):
+        horarios = []
+        intervalo = max(int(self.intervalo_turnos or 30), 1)
+        hora = datetime.datetime.combine(datetime.date.today(), self.hora_apertura)
+        cierre = datetime.datetime.combine(datetime.date.today(), self.hora_cierre)
+        while hora <= cierre:
+            horarios.append(hora.time())
+            hora += datetime.timedelta(minutes=intervalo)
+        return horarios
+
 
 class Mascota(models.Model):
-    propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mascotas', verbose_name="Dueño/Propietario")
+    propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mascotas', verbose_name="Due\u00f1o/Propietario")
     nombre = models.CharField(max_length=50, verbose_name="Nombre de la mascota")
     especie = models.CharField(max_length=30, default='Canino (Perro)', verbose_name="Especie")
     raza = models.CharField(max_length=50, verbose_name="Raza")
-    edad = models.PositiveIntegerField(default=2, verbose_name="Edad (años)")
+    edad = models.PositiveIntegerField(default=2, verbose_name="Edad (a\u00f1os)")
     peso_kg = models.DecimalField(max_digits=4, decimal_places=1, default=5.0, verbose_name="Peso (kg)")
     notas_medicas = models.TextField(blank=True, null=True, verbose_name="Alergias o Cuidados Especiales")
     foto_url = models.URLField(blank=True, null=True, verbose_name="URL de Imagen / Foto")
@@ -294,7 +341,7 @@ class Mascota(models.Model):
         ordering = ['nombre']
 
     def __str__(self):
-        return f"{self.nombre} ({self.raza}) - Dueño: {self.propietario.get_full_name() or self.propietario.username}"
+        return f"{self.nombre} ({self.raza}) - Due\u00f1o: {self.propietario.get_full_name() or self.propietario.username}"
 
 
 class PerfilCliente(models.Model):
@@ -307,8 +354,8 @@ class PerfilCliente(models.Model):
         related_name='clientes',
         verbose_name="Negocio principal",
     )
-    telefono = models.CharField(max_length=20, blank=True, verbose_name="Teléfono")
-    direccion = models.CharField(max_length=180, blank=True, verbose_name="Dirección")
+    telefono = models.CharField(max_length=20, blank=True, verbose_name="Tel\u00e9fono")
+    direccion = models.CharField(max_length=180, blank=True, verbose_name="Direcci\u00f3n")
     barrio = models.CharField(max_length=80, blank=True, verbose_name="Barrio o sector")
     contacto_preferido = models.CharField(
         max_length=20,
@@ -327,7 +374,7 @@ class PerfilCliente(models.Model):
 
 class Cita(models.Model):
     ESTADOS = [
-        ('PENDIENTE', 'Pendiente de Confirmación'),
+        ('PENDIENTE', 'Pendiente de Confirmaci\u00f3n'),
         ('CONFIRMADA', 'Confirmada'),
         ('ATENDIDA', 'Servicio Atendido'),
         ('CANCELADA', 'Cancelada'),
@@ -336,10 +383,10 @@ class Cita(models.Model):
     ETAPAS_SEGUIMIENTO = [
         ('AGENDADA', 'Cita agendada'),
         ('RECIBIDA', 'Mascota recibida'),
-        ('BANO', 'Baño y limpieza'),
+        ('BANO', 'Ba\u00f1o y limpieza'),
         ('SECADO', 'Secado y cepillado'),
         ('CORTE', 'Corte y estilizado'),
-        ('REVISION', 'Revisión final'),
+        ('REVISION', 'Revisi\u00f3n final'),
         ('LISTA', 'Lista para retirar'),
         ('ENTREGADA', 'Entregada'),
     ]
@@ -356,13 +403,13 @@ class Cita(models.Model):
     sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name='citas', verbose_name="Sucursal")
     mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='citas', verbose_name="Mascota")
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE, related_name='citas', verbose_name="Servicio Requerido")
-    fecha = models.DateField(verbose_name="Fecha de Atención")
-    hora = models.TimeField(verbose_name="Hora de Atención")
+    fecha = models.DateField(verbose_name="Fecha de Atenci\u00f3n")
+    hora = models.TimeField(verbose_name="Hora de Atenci\u00f3n")
     estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE', verbose_name="Estado de la Cita")
     etapa_seguimiento = models.CharField(max_length=20, choices=ETAPAS_SEGUIMIENTO, default='AGENDADA', verbose_name="Etapa de seguimiento")
     progreso = models.PositiveIntegerField(default=0, verbose_name="Progreso (%)")
     nota_seguimiento = models.TextField(blank=True, null=True, verbose_name="Nota visible para el cliente")
-    actualizado_seguimiento = models.DateTimeField(auto_now=True, verbose_name="Última actualización de seguimiento")
+    actualizado_seguimiento = models.DateTimeField(auto_now=True, verbose_name="\u00daltima actualizaci\u00f3n de seguimiento")
     estado_pago = models.CharField(
         max_length=20,
         choices=[('PENDIENTE', 'Pendiente'), ('ABONADO', 'Abonado'), ('PAGADO', 'Pagado')],
@@ -373,12 +420,12 @@ class Cita(models.Model):
         max_length=20,
         choices=[('EFECTIVO', 'Efectivo'), ('TRANSFERENCIA', 'Transferencia'), ('TARJETA', 'Tarjeta')],
         default='EFECTIVO',
-        verbose_name="Método de pago",
+        verbose_name="M\u00e9todo de pago",
     )
     referencia_pago = models.CharField(max_length=120, blank=True, verbose_name="Referencia de pago")
     datafast_checkout_id = models.CharField(max_length=180, blank=True, verbose_name="Checkout ID Datafast")
     datafast_resource_path = models.CharField(max_length=255, blank=True, verbose_name="Resource path Datafast")
-    datafast_result_code = models.CharField(max_length=60, blank=True, verbose_name="Código de respuesta Datafast")
+    datafast_result_code = models.CharField(max_length=60, blank=True, verbose_name="C\u00f3digo de respuesta Datafast")
     notas = models.TextField(blank=True, null=True, verbose_name="Observaciones o Requerimientos")
     creado_en = models.DateTimeField(auto_now_add=True)
 
@@ -386,6 +433,13 @@ class Cita(models.Model):
         verbose_name = "Cita"
         verbose_name_plural = "Citas"
         ordering = ['-fecha', '-hora']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sucursal', 'fecha', 'hora'],
+                condition=~models.Q(estado='CANCELADA'),
+                name='cita_horario_activo_unico_por_sucursal',
+            ),
+        ]
 
     def __str__(self):
         return f"Cita #{self.id} - {self.mascota.nombre} ({self.servicio.nombre}) - {self.fecha} {self.hora}"
@@ -402,13 +456,13 @@ class Calificacion(models.Model):
 
     cita = models.OneToOneField(Cita, on_delete=models.CASCADE, related_name='calificacion', verbose_name="Cita")
     cliente = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calificaciones', verbose_name="Cliente")
-    puntuacion = models.PositiveSmallIntegerField(choices=ESCALA, verbose_name="Puntuación")
+    puntuacion = models.PositiveSmallIntegerField(choices=ESCALA, verbose_name="Puntuaci\u00f3n")
     comentario = models.TextField(blank=True, verbose_name="Comentario")
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Calificación"
+        verbose_name = "Calificaci\u00f3n"
         verbose_name_plural = "Calificaciones"
         ordering = ['-creado_en']
 

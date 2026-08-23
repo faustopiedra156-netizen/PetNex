@@ -28,9 +28,9 @@
             </div>
 
             <div class="mt-6 pt-5 border-t border-slate-200">
-                <h2 class="font-headline font-bold text-slate-900 mb-3">Escala de calificacion</h2>
+                <h2 class="font-headline font-bold text-slate-900 mb-3">Escala de calificación</h2>
                 <div class="space-y-2">
-                    {% for item in escala_calificacion %}
+                    {% for item in escala_calificación %}
                         <div class="rounded-xl bg-slate-50 border border-slate-100 p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="font-bold text-sm text-slate-800">{{ item.valor }} estrella{% if item.valor != 1 %}s{% endif %}</span>
@@ -52,16 +52,16 @@
         <section class="lg:col-span-3 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-xl">
             <span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold uppercase tracking-wide">Opinion del cliente</span>
             <h2 class="font-headline font-black text-2xl text-slate-900 mt-3">Como calificas el servicio?</h2>
-            <p class="text-sm text-slate-500 mt-1">Tu opinion ayuda a mejorar la atencion y el cuidado de cada mascota.</p>
+            <p class="text-sm text-slate-500 mt-1">Tu opinión ayuda a mejorar la atención y el cuidado de cada mascota.</p>
 
             <form method="post" class="mt-6 space-y-6" id="ratingForm">
                 {% csrf_token %}
 
                 <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-3">Selecciona una calificacion</label>
+                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-3">Selecciona una calificación</label>
                     <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                        <div class="flex flex-row-reverse justify-end gap-2 rating-stars" role="radiogroup" aria-label="Calificacion del servicio">
-                            {% for item in escala_calificacion reversed %}
+                        <div class="flex flex-row-reverse justify-end gap-2 rating-stars" role="radiogroup" aria-label="Calificación del servicio">
+                            {% for item in escala_calificación reversed %}
                                 <input
                                     type="radio"
                                     id="rating-{{ item.valor }}"
@@ -83,10 +83,10 @@
 
                         <div class="mt-5 rounded-xl bg-white border border-slate-200 p-4 min-h-[96px]" aria-live="polite">
                             <div class="flex items-center justify-between gap-3">
-                                <p class="font-headline font-black text-xl text-slate-900" id="ratingTitle">Elige una calificacion</p>
+                                <p class="font-headline font-black text-xl text-slate-900" id="ratingTitle">Elige una calificación</p>
                                 <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-black" id="ratingValue">0/5</span>
                             </div>
-                            <p class="text-sm text-slate-600 mt-2" id="ratingDetail">Al seleccionar una estrella veras aqui que significa esa puntuacion.</p>
+                            <p class="text-sm text-slate-600 mt-2" id="ratingDetail">Al seleccionar una estrella verás aquí qué significa esa puntuacion.</p>
                         </div>
                     </div>
                     {% if form.puntuacion.errors %}
@@ -104,7 +104,7 @@
 
                 <div class="flex flex-col sm:flex-row gap-3">
                     <button class="flex-1 py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800 transition">
-                        Guardar calificacion
+                        Guardar calificación
                     </button>
                     <a href="{% url 'mis_citas' %}" class="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-headline font-bold text-center hover:bg-slate-50 transition">
                         Volver

@@ -3,19 +3,36 @@
 {% block title %}Agendar Cita - {{ business.name }}{% endblock %}
 
 {% block content %}
-<div class="py-12 max-w-3xl mx-auto px-4 sm:px-6">
-    <div class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/80 shadow-xl">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center font-bold">
-                <span class="material-symbols-outlined text-2xl">event_available</span>
+<div class="py-10 max-w-5xl mx-auto px-4 sm:px-6">
+    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden">
+        <div class="bg-slate-950 text-white p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-teal-400/15 text-teal-200 flex items-center justify-center font-bold">
+                    <span class="material-symbols-outlined text-2xl">event_available</span>
+                </div>
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-widest text-teal-200">Reserva inteligente</span>
+                    <h1 class="font-headline font-black text-2xl sm:text-3xl mt-1">Agendar cita de peluquería</h1>
+                    <p class="text-slate-300 text-sm">Selecciona sucursal, mascota, servicio y horario disponible en {{ business.city }}.</p>
+                </div>
             </div>
-            <div>
-                <h1 class="font-headline font-black text-2xl sm:text-3xl text-slate-900">Agendar Cita de Peluquería</h1>
-                <p class="text-slate-500 text-sm">Selecciona tu mascota, el servicio deseado y el horario que prefieras en {{ business.city }}.</p>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                <div class="rounded-2xl bg-white/10 border border-white/10 px-3 py-2">
+                    <span class="material-symbols-outlined text-teal-200 text-lg">store</span>
+                    <span class="block">Sucursal</span>
+                </div>
+                <div class="rounded-2xl bg-white/10 border border-white/10 px-3 py-2">
+                    <span class="material-symbols-outlined text-teal-200 text-lg">pets</span>
+                    <span class="block">Mascota</span>
+                </div>
+                <div class="rounded-2xl bg-white/10 border border-white/10 px-3 py-2">
+                    <span class="material-symbols-outlined text-teal-200 text-lg">schedule</span>
+                    <span class="block">Horario</span>
+                </div>
             </div>
         </div>
 
-        <form id="agendaForm" method="post" class="space-y-6" novalidate>
+        <form id="agendaForm" method="post" class="p-6 sm:p-8 space-y-7" novalidate>
             {% csrf_token %}
 
             {% if form.errors %}
@@ -34,45 +51,41 @@
                 </div>
             {% endif %}
 
-            <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                    1. Selecciona la Sucursal
-                </label>
-                {{ form.sucursal }}
-                {% if form.sucursal.errors %}
-                    <p class="text-red-600 text-xs mt-1">{{ form.sucursal.errors.0 }}</p>
-                {% endif %}
-            </div>
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="lg:col-span-2">
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">1. Selecciona la sucursal</label>
+                    {{ form.sucursal }}
+                    {% if form.sucursal.errors %}
+                        <p class="text-red-600 text-xs mt-1">{{ form.sucursal.errors.0 }}</p>
+                    {% endif %}
+                </div>
 
-            <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2 flex items-center justify-between">
-                    <span>2. Selecciona tu Mascota</span>
-                    <a href="{% url 'nueva_mascota' %}?next=agendar" class="text-xs text-[#00685f] font-semibold hover:underline flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">add_circle</span>
-                        + Registrar nueva mascota
-                    </a>
-                </label>
-                {{ form.mascota }}
-                {% if form.mascota.errors %}
-                    <p class="text-red-600 text-xs mt-1">{{ form.mascota.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                    3. Servicio Solicitado
-                </label>
-                {{ form.servicio }}
-                {% if form.servicio.errors %}
-                    <p class="text-red-600 text-xs mt-1">{{ form.servicio.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                        3. Fecha de Atención
+                    <label class="font-headline font-bold text-sm text-slate-800 mb-2 flex items-center justify-between gap-3">
+                        <span>2. Selecciona tu mascota</span>
+                        <a href="{% url 'nueva_mascota' %}?next=agendar" class="text-xs text-[#00685f] font-bold hover:underline flex items-center gap-1 whitespace-nowrap">
+                            <span class="material-symbols-outlined text-sm">add_circle</span>
+                            Registrar
+                        </a>
                     </label>
+                    {{ form.mascota }}
+                    {% if form.mascota.errors %}
+                        <p class="text-red-600 text-xs mt-1">{{ form.mascota.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">3. Servicio solicitado</label>
+                    {{ form.servicio }}
+                    {% if form.servicio.errors %}
+                        <p class="text-red-600 text-xs mt-1">{{ form.servicio.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-5">
+                <div>
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">4. Fecha de atención</label>
                     {{ form.fecha }}
                     {% if form.fecha.errors %}
                         <p class="text-red-600 text-xs mt-1">{{ form.fecha.errors.0 }}</p>
@@ -80,41 +93,37 @@
                 </div>
 
                 <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                        5. Hora Preferida
-                    </label>
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">5. Hora preferida</label>
                     {{ form.hora }}
                     <div id="horariosGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
-                    <p id="horariosHint" class="text-xs text-slate-400 mt-2">Selecciona una sucursal y fecha para ver horarios disponibles.</p>
+                    <p id="horariosHint" class="text-xs text-slate-400 mt-2">Selecciona una sucursal y fecha desde hoy para ver horarios disponibles.</p>
                     {% if form.hora.errors %}
                         <p class="text-red-600 text-xs mt-1">{{ form.hora.errors.0 }}</p>
                     {% endif %}
                 </div>
-            </div>
+            </section>
 
             <div class="rounded-2xl border border-teal-100 bg-teal-50/60 p-4">
                 <div class="flex items-start gap-3">
                     <span class="material-symbols-outlined text-[#00685f]">schedule</span>
                     <div>
-                        <h2 class="font-headline font-bold text-slate-900 text-sm">Horario de atencion</h2>
+                        <h2 class="font-headline font-bold text-slate-900 text-sm">Horario de atención</h2>
                         <p class="text-xs text-slate-600 mt-1">{{ business.opening_hours }}</p>
-                        <p class="text-xs text-slate-500 mt-1">No se aceptan reservas en domingos ni horarios ya ocupados en la misma sucursal.</p>
+                        <p class="text-xs text-slate-500 mt-1">No se aceptan reservas en días cerrados ni horarios ya ocupados en la misma sucursal.</p>
                     </div>
                 </div>
             </div>
 
             <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-2">
-                    6. Observaciones o Notas Adicionales
-                </label>
+                <label class="block font-headline font-bold text-sm text-slate-800 mb-2">6. Observaciones o notas adicionales</label>
                 {{ form.notas }}
-                <p class="text-xs text-slate-400 mt-1">Indica alergias, cortes específicos o detalles importantes para el groomer.</p>
+                <p class="text-xs text-slate-400 mt-1">Indica alergias, cortes especificos o detalles importantes para el groomer.</p>
             </div>
 
-            <div class="pt-4 flex gap-4">
+            <div class="pt-2">
                 <button type="submit" class="w-full py-3.5 px-6 rounded-2xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold text-base shadow-md transition flex items-center justify-center gap-2">
                     <span class="material-symbols-outlined text-xl">check_circle</span>
-                    <span>Confirmar Cita</span>
+                    <span>Confirmar cita</span>
                 </button>
             </div>
         </form>
@@ -148,13 +157,13 @@
                 button.classList.toggle('bg-white', !active);
                 button.classList.toggle('text-slate-700', !active);
             });
-            setHint('Hora seleccionada: ' + hora + '. Los horarios con check ya no estan disponibles.', false);
+            setHint('Hora seleccionada: ' + hora + '. Los horarios con check ya no están disponibles.', false);
         }
 
         function renderHorarios(horarios, selectedHora) {
             grid.innerHTML = '';
             if (!horarios.length) {
-                setHint('Selecciona una sucursal y fecha para ver horarios disponibles.');
+                setHint('Selecciona una sucursal y fecha desde hoy para ver horarios disponibles.');
                 return;
             }
 
@@ -188,7 +197,7 @@
                 }
                 horaSelect.value = '';
             }
-            setHint('Los horarios con check ya no estan disponibles en esa sucursal.');
+            setHint('Los horarios con check ya no están disponibles en esa sucursal.');
         }
 
         function cargarDisponibilidad(resetSelection) {
@@ -207,7 +216,15 @@
             setHint('Consultando disponibilidad...');
             fetch(disponibilidadUrl + '?sucursal=' + encodeURIComponent(sucursal) + '&fecha=' + encodeURIComponent(fecha))
                 .then(function (response) { return response.json(); })
-                .then(function (data) { renderHorarios(data.horarios || [], selectedHora); })
+                .then(function (data) {
+                    if (data.estado && data.estado !== 'ok') {
+                        grid.innerHTML = '';
+                        horaSelect.value = '';
+                        setHint(data.mensaje || 'No hay horarios disponibles para esta fecha.', true);
+                        return;
+                    }
+                    renderHorarios(data.horarios || [], selectedHora);
+                })
                 .catch(function () {
                     grid.innerHTML = '';
                     setHint('No se pudo consultar la disponibilidad. Intenta nuevamente.', true);

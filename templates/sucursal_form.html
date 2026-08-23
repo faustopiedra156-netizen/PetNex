@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if sucursal %}Editar sucursal{% else %}Nueva sucursal{% endif %} - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="py-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-[0.78fr_1.22fr] gap-6 items-start">
+        <aside class="rounded-3xl bg-slate-950 text-white p-7 sm:p-8 shadow-xl">
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-400/10 text-teal-100 text-xs font-bold uppercase border border-teal-300/20">
+                <span class="material-symbols-outlined text-sm">store</span>
+                Agenda por local
+            </span>
+            <h1 class="font-headline font-black text-3xl sm:text-4xl mt-5">
+                {% if sucursal %}Editar sucursal{% else %}Nueva sucursal{% endif %}
+            </h1>
+            <p class="text-slate-300 text-sm leading-relaxed mt-4">
+                Cada sucursal maneja su propio horario. Las citas ocupadas se bloquean solo para el local seleccionado.
+            </p>
+            <div class="mt-8 grid gap-3 text-sm">
+                <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
+                    <span class="material-symbols-outlined text-teal-200">schedule</span>
+                    <span>Define hora de apertura y cierre por local.</span>
+                </div>
+                <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
+                    <span class="material-symbols-outlined text-teal-200">timer</span>
+                    <span>Configura turnos cada 15, 30, 45 o 60 minutos.</span>
+                </div>
+                <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
+                    <span class="material-symbols-outlined text-teal-200">event_busy</span>
+                    <span>Bloquea días cerrados para que no se puedan reservar.</span>
+                </div>
+            </div>
+            <a href="{% url 'gestion_admin' %}" class="mt-8 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 text-white font-bold text-sm hover:bg-white/10">
+                <span class="material-symbols-outlined text-lg">arrow_back</span>
+                Volver al panel
+            </a>
+        </aside>
+
+        <form method="post" class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+            {% csrf_token %}
+            <div class="p-6 sm:p-8 border-b border-slate-100">
+                <h2 class="font-headline font-black text-2xl text-slate-900">Datos de la sucursal</h2>
+                <p class="text-sm text-slate-500 mt-1">Esta información controla la disponibilidad que ve el cliente al agendar.</p>
+            </div>
+
+            <div class="p-6 sm:p-8 space-y-7">
+                {% if form.non_field_errors %}
+                    <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                        {{ form.non_field_errors.0 }}
+                    </div>
+                {% endif %}
+
+                <section class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <label class="block">
+                        <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.nombre.label }}</span>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<span class="text-xs text-red-600">{{ form.nombre.errors.0 }}</span>{% endif %}
+                    </label>
+                    <label class="block">
+                        <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.ciudad.label }}</span>
+                        {{ form.ciudad }}
+                        {% if form.ciudad.errors %}<span class="text-xs text-red-600">{{ form.ciudad.errors.0 }}</span>{% endif %}
+                    </label>
+                    <label class="block md:col-span-2">
+                        <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.direccion.label }}</span>
+                        {{ form.direccion }}
+                        {% if form.direccion.errors %}<span class="text-xs text-red-600">{{ form.direccion.errors.0 }}</span>{% endif %}
+                    </label>
+                    <label class="block md:col-span-2">
+                        <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.telefono.label }}</span>
+                        {{ form.telefono }}
+                        {% if form.telefono.errors %}<span class="text-xs text-red-600">{{ form.telefono.errors.0 }}</span>{% endif %}
+                    </label>
+                </section>
+
+                <section>
+                    <h3 class="font-headline font-black text-xl text-slate-900 mb-4">Horario de atención</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <label class="block">
+                            <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.hora_apertura.label }}</span>
+                            {{ form.hora_apertura }}
+                            {% if form.hora_apertura.errors %}<span class="text-xs text-red-600">{{ form.hora_apertura.errors.0 }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.hora_cierre.label }}</span>
+                            {{ form.hora_cierre }}
+                            {% if form.hora_cierre.errors %}<span class="text-xs text-red-600">{{ form.hora_cierre.errors.0 }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.intervalo_turnos.label }}</span>
+                            {{ form.intervalo_turnos }}
+                            {% if form.intervalo_turnos.errors %}<span class="text-xs text-red-600">{{ form.intervalo_turnos.errors.0 }}</span>{% endif %}
+                        </label>
+                    </div>
+                </section>
+
+                <section class="grid grid-cols-1 md:grid-cols-[1fr_0.55fr] gap-5">
+                    <label class="block">
+                        <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.dias_cerrados.label }}</span>
+                        {{ form.dias_cerrados }}
+                        <span class="block text-xs text-slate-500 mt-2">0=lunes, 1=martes, 2=miercoles, 3=jueves, 4=viernes, 5=sabado, 6=domingo. Ejemplo: <b>6</b> para cerrar domingo.</span>
+                        {% if form.dias_cerrados.errors %}<span class="text-xs text-red-600">{{ form.dias_cerrados.errors.0 }}</span>{% endif %}
+                    </label>
+                    <label class="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 self-end hover:border-teal-200 hover:bg-teal-50/30 transition">
+                        {{ form.activa }}
+                        <span>
+                            <span class="block text-sm font-bold text-slate-800">Sucursal activa</span>
+                            <span class="block text-xs text-slate-500">Visible al agendar citas.</span>
+                        </span>
+                    </label>
+                </section>
+
+                <div class="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                    <a href="{% url 'gestion_admin' %}" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-center hover:bg-slate-50">
+                        Cancelar
+                    </a>
+                    <button class="px-6 py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800 shadow-md flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-lg">save</span>
+                        Guardar sucursal
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

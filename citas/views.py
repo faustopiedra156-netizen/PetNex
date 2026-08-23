@@ -16,7 +16,7 @@ from django.db.models import Sum, Count, Q, Avg
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm
 from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_publico, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
@@ -102,6 +102,13 @@ def redirect_si_no_staff(request):
     return redirect('home')
 
 
+def redirect_si_no_admin_local(request):
+    if es_admin_local(request.user):
+        return None
+    messages.error(request, "Esta accion corresponde al administrador del local.")
+    return redirect('gestion_admin')
+
+
 def licencia_bloqueada_para_operar(user):
     negocio = obtener_negocio_usuario(user)
     licencia = estado_licencia(negocio)
@@ -145,6 +152,18 @@ def health_check_view(request):
     return JsonResponse(checks, status=status)
 
 
+def politica_privacidad_view(request):
+    return render(request, 'politica_privacidad.html')
+
+
+def terminos_condiciones_view(request):
+    return render(request, 'terminos_condiciones.html')
+
+
+def soporte_view(request):
+    return render(request, 'soporte.html')
+
+
 def home_view(request):
     negocio = negocio_para_request(request)
     try:
@@ -176,6 +195,8 @@ def home_view(request):
         'tasa_atencion': tasa_atencion,
         'promedio_resenas': round(promedio_resenas, 1),
         'total_resenas': total_resenas,
+        'hero_slides': settings.BUSINESS_CONFIG.get('hero_slides', []),
+        'trust_features': settings.BUSINESS_CONFIG.get('trust_features', []),
     }
     return render(request, 'home.html', context)
 
@@ -251,7 +272,7 @@ def chatbot_view(request):
     elif any(palabra in texto for palabra in ['servicio', 'precio', 'costo', 'cuanto', 'baño', 'bano', 'corte', 'peluqueria']):
         respuesta = lista_servicios() + " Para reservar, entra en Agendar Cita y elige mascota, servicio, fecha y hora."
     elif any(palabra in texto for palabra in ['horario', 'hora', 'atienden', 'abren', 'cierran']):
-        respuesta = f"Nuestro horario de atencion es: {negocio['opening_hours']}. En la agenda veras solo horarios disponibles por sucursal."
+        respuesta = f"Nuestro horario de atención es: {negocio['opening_hours']}. En la agenda verás solo horarios disponibles por sucursal."
     elif any(palabra in texto for palabra in ['cita', 'reservar', 'agendar', 'turno']):
         respuesta = (
             "Para agendar una cita debes iniciar sesion, registrar tu mascota y seleccionar sucursal, servicio, fecha y hora. "
@@ -276,7 +297,7 @@ def chatbot_view(request):
     else:
         respuesta = (
             "Puedo ayudarte con servicios, precios, horarios, citas, pagos, contacto o seguimiento. "
-            "Prueba escribiendo: quiero agendar una cita, cuanto cuesta un baño, o como va mi mascota."
+            "Prueba escribiendo: quiero agendar una cita, cuánto cuesta un baño, o cómo va mi mascota."
         )
 
     return JsonResponse({'respuesta': respuesta})
@@ -288,17 +309,35 @@ def disponibilidad_horarios_view(request):
     sucursal_id = request.GET.get('sucursal')
     fecha = request.GET.get('fecha')
     if not sucursal_id or not fecha:
-        return JsonResponse({'horarios': []})
+        return JsonResponse({'horarios': [], 'estado': 'incompleto'})
 
     try:
         fecha_obj = datetime.date.fromisoformat(fecha)
     except ValueError:
-        return JsonResponse({'horarios': []}, status=400)
+        return JsonResponse({'horarios': [], 'estado': 'fecha_invalida'}, status=400)
+
+    sucursal = Sucursal.objects.filter(negocio=negocio, id=sucursal_id, activa=True).first()
+    if not sucursal:
+        return JsonResponse({'horarios': [], 'estado': 'sucursal_invalida'}, status=404)
+
+    if fecha_obj < timezone.localdate():
+        return JsonResponse({
+            'horarios': [],
+            'estado': 'fecha_pasada',
+            'mensaje': 'La fecha seleccionada ya paso. Elige una fecha desde hoy en adelante.',
+        })
+
+    if not sucursal.atiende_en_fecha(fecha_obj):
+        return JsonResponse({
+            'horarios': [],
+            'estado': 'dia_cerrado',
+            'mensaje': 'La sucursal no atiende en la fecha seleccionada.',
+        })
 
     ocupadas = set(
         Cita.objects.filter(
             negocio=negocio,
-            sucursal_id=sucursal_id,
+            sucursal=sucursal,
             fecha=fecha_obj,
         ).exclude(estado='CANCELADA').values_list('hora', flat=True)
     )
@@ -307,9 +346,14 @@ def disponibilidad_horarios_view(request):
             'hora': hora.strftime('%H:%M'),
             'ocupado': hora in ocupadas,
         }
-        for hora in generar_horarios_disponibilidad()
+        for hora in sucursal.generar_horarios()
     ]
-    return JsonResponse({'horarios': horarios})
+    return JsonResponse({
+        'horarios': horarios,
+        'estado': 'ok',
+        'sucursal': sucursal.nombre,
+        'fecha': fecha_obj.isoformat(),
+    })
 
 
 @login_required
@@ -540,7 +584,7 @@ def normalizar_ciclo_facturacion(valor):
 def crear_checkout_suscripcion_datafast(request, pago):
     url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
     user = request.user
-    negocio = obtener_configuracion_negocio()
+    negocio = obtener_configuracion_negocio(pago.suscripcion.negocio)
     data = {
         'entityId': settings.DATAFAST_ENTITY_ID,
         'amount': f"{pago.monto:.2f}",
@@ -635,6 +679,20 @@ def perfil_cliente_view(request):
         form = PerfilClienteForm(instance=perfil, user=request.user)
 
     return render(request, 'perfil.html', {'form': form})
+
+
+@login_required
+@require_POST
+def eliminar_perfil_cliente_view(request):
+    if request.user.is_staff or request.user.is_superuser:
+        messages.error(request, "Las cuentas administrativas no se eliminan desde Mi Perfil.")
+        return redirect('perfil_cliente')
+
+    user = request.user
+    logout(request)
+    user.delete()
+    messages.info(request, "Tu cuenta fue eliminada correctamente.")
+    return redirect('home')
 
 
 @login_required
@@ -862,6 +920,29 @@ def cuentas_admin_view(request):
         'administradores': administradores,
         'clientes': clientes,
     })
+
+
+@login_required
+@require_POST
+def eliminar_cuenta_sistema_view(request, user_id):
+    if not es_dueno_petnexo(request.user):
+        messages.error(request, "Solo el dueño de PetNexo puede eliminar cuentas del sistema.")
+        return redirect('gestion_admin')
+
+    usuario = get_object_or_404(User, id=user_id)
+    nombre_usuario = usuario.get_full_name() or usuario.username
+
+    if usuario.id == request.user.id:
+        messages.error(request, "No puedes eliminar tu propia cuenta desde este panel.")
+        return redirect('cuentas_admin')
+
+    if usuario.is_superuser and User.objects.filter(is_superuser=True).count() <= 1:
+        messages.error(request, "Debe existir al menos un dueño de PetNexo activo.")
+        return redirect('cuentas_admin')
+
+    usuario.delete()
+    messages.success(request, f"La cuenta de {nombre_usuario} fue eliminada correctamente.")
+    return redirect('cuentas_admin')
 
 
 @login_required
@@ -1107,7 +1188,7 @@ def actualizar_seguimiento_cita_view(request, cita_id):
 
 @login_required
 def servicio_form_view(request, servicio_id=None):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1139,7 +1220,7 @@ def servicio_form_view(request, servicio_id=None):
 @login_required
 @require_POST
 def toggle_servicio_view(request, servicio_id):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1154,6 +1235,37 @@ def toggle_servicio_view(request, servicio_id):
     servicio.save()
     messages.info(request, f"Estado de {servicio.nombre} actualizado a {'Activo' if servicio.activo else 'Inactivo'}.")
     return redirect('gestion_admin')
+
+
+@login_required
+def sucursal_form_view(request, sucursal_id=None):
+    redirect_response = redirect_si_no_staff(request)
+    if redirect_response:
+        return redirect_response
+    negocio, redirect_response = negocio_admin_o_redirect(request)
+    if redirect_response:
+        return redirect_response
+    if licencia_bloqueada_para_operar(request.user):
+        messages.error(request, estado_licencia(negocio)['mensaje'])
+        return redirect('gestion_admin')
+
+    sucursal = get_object_or_404(Sucursal, id=sucursal_id, negocio=negocio) if sucursal_id else None
+    if request.method == 'POST':
+        form = SucursalForm(request.POST, instance=sucursal)
+        if form.is_valid():
+            sucursal_guardada = form.save(commit=False)
+            sucursal_guardada.negocio = negocio
+            sucursal_guardada.save()
+            accion = 'actualizada' if sucursal else 'creada'
+            messages.success(request, f"Sucursal {sucursal_guardada.nombre} {accion} correctamente.")
+            return redirect('gestion_admin')
+    else:
+        form = SucursalForm(instance=sucursal)
+
+    return render(request, 'sucursal_form.html', {
+        'form': form,
+        'sucursal': sucursal,
+    })
 
 
 # Auth Views

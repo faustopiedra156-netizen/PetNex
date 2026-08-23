@@ -1,0 +1,217 @@
+$ErrorActionPreference = 'Stop'
+
+$docsDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$out = Join-Path $docsDir 'Resumen_Modelo_Negocio_Digital_PetNexo.docx'
+$tmp = Join-Path $env:TEMP ('petnexo_modelo_' + [guid]::NewGuid().ToString())
+
+New-Item -ItemType Directory -Path $tmp | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $tmp '_rels') | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $tmp 'word') | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $tmp 'word\_rels') | Out-Null
+
+function Escape-Xml([string]$Text) {
+    return [System.Security.SecurityElement]::Escape($Text)
+}
+
+function Add-Paragraph([string]$Text, [string]$Style = 'Normal') {
+    $styleXml = ''
+    if ($Style -ne 'Normal') {
+        $styleXml = '<w:pPr><w:pStyle w:val="' + $Style + '"/></w:pPr>'
+    }
+    return '<w:p>' + $styleXml + '<w:r><w:t xml:space="preserve">' + (Escape-Xml $Text) + '</w:t></w:r></w:p>'
+}
+
+function Add-Bullet([string]$Text) {
+    return '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t xml:space="preserve">' + (Escape-Xml $Text) + '</w:t></w:r></w:p>'
+}
+
+function Add-PageBreak() {
+    return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+}
+
+$body = New-Object System.Collections.Generic.List[string]
+
+$body.Add((Add-Paragraph 'Desarrollo y validación del modelo de negocio digital' 'Title'))
+$body.Add((Add-Paragraph 'Proyecto: PetNexo, plataforma web para gestión de locales de peluquería, estética y cuidado de mascotas.' 'Subtitle'))
+$body.Add((Add-Paragraph ('Fecha de generación: ' + (Get-Date -Format 'yyyy-MM-dd HH:mm'))))
+
+$body.Add((Add-Paragraph 'Resumen ejecutivo' 'Heading1'))
+$body.Add((Add-Paragraph 'PetNexo es una solución digital tipo SaaS orientada a negocios que ofrecen servicios de peluquería, estética, baño, spa, higiene y cuidado de mascotas. El sistema permite que cada local administre su catálogo, sucursales, horarios, citas, clientes, mascotas, pagos, seguimiento del servicio y reseñas desde una plataforma centralizada.'))
+$body.Add((Add-Paragraph 'La oportunidad nace de un problema frecuente en este tipo de negocios: gran parte de las reservas se coordina por WhatsApp o llamadas, los horarios se manejan manualmente, el cliente no tiene visibilidad del avance de su mascota y el dueño del local carece de información clara sobre ventas, demanda y satisfacción. PetNexo busca reducir esa fricción y profesionalizar la operación diaria.'))
+
+$body.Add((Add-Paragraph 'Problema identificado' 'Heading1'))
+@(
+    'Los locales pierden tiempo coordinando citas por mensajes, llamadas o agendas físicas.',
+    'Es común que existan cruces de horarios, olvidos, cancelaciones tardías o espacios vacíos.',
+    'Los clientes desean saber qué servicio recibe su mascota, en qué estado va y cuándo puede retirarla.',
+    'Muchos negocios pequeños no tienen una herramienta simple para publicar servicios, cobrar, recibir reseñas y medir resultados.',
+    'Cuando el local tiene más de una sucursal, la gestión de disponibilidad se vuelve más difícil si no se separan horarios por local.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Solución propuesta' 'Heading1'))
+$body.Add((Add-Paragraph 'PetNexo centraliza la operación de un negocio de cuidado de mascotas en una plataforma web construida con Django. El cliente final puede registrarse, crear la ficha de su mascota, reservar una cita, pagar o seleccionar método de pago, revisar el seguimiento y dejar una calificación. El administrador del local puede gestionar servicios, precios, horarios, sucursales, citas y estados de atención. El dueño de PetNexo controla el sistema, los planes y las cuentas de locales.'))
+
+$body.Add((Add-Paragraph 'Propuesta de valor' 'Heading1'))
+@(
+    'Para el local: menos trabajo manual, mejor control de agenda, organización por sucursales, catálogo editable, pagos y datos para tomar decisiones.',
+    'Para el cliente final: reserva más rápida, seguimiento de la mascota, información clara de precios, horarios y servicios.',
+    'Para PetNexo: modelo escalable por suscripción mensual o anual, adaptable a distintos negocios del sector mascotas.',
+    'Diferenciador principal: combina reservas, operación interna, seguimiento y monetización SaaS en una sola herramienta.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Modelo Canvas del negocio digital' 'Heading1'))
+$body.Add((Add-Paragraph 'Segmentos de clientes' 'Heading2'))
+@(
+    'Locales de peluquería canina, estética de mascotas, veterinarias con servicios de grooming y spas para mascotas.',
+    'Emprendimientos pequeños que necesitan digitalizar reservas sin comprar un sistema complejo.',
+    'Negocios con una o varias sucursales que requieren separar horarios y disponibilidad.',
+    'Clientes finales que buscan reservar, pagar y consultar el estado de atención de su mascota.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Canales' 'Heading2'))
+@(
+    'Página web pública de cada local configurada con su nombre, ciudad, contacto, servicios y marca.',
+    'Redes sociales del negocio, enlaces en Instagram, Facebook, TikTok y WhatsApp.',
+    'Ventas directas a locales de mascotas en la ciudad.',
+    'Demostraciones del sistema y pruebas piloto con negocios reales.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Relación con clientes' 'Heading2'))
+@(
+    'Autoservicio para reservas, registro de mascotas y consulta de citas.',
+    'Acompañamiento inicial al administrador del local para configurar servicios, horarios y sucursales.',
+    'Soporte por correo o WhatsApp para incidencias operativas.',
+    'Renovación por suscripción mensual o anual.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Fuentes de ingresos' 'Heading2'))
+@(
+    'Plan Básico: $25 mensuales para un local pequeño con funciones esenciales.',
+    'Plan Pro: $45 mensuales para negocios en crecimiento con mayor capacidad.',
+    'Plan Premium: $75 mensuales para negocios con más sucursales y mayor volumen.',
+    'Plan anual con descuento para mejorar retención y flujo de caja.',
+    'Servicios adicionales: configuración inicial, personalización, soporte premium o módulos avanzados.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Recursos clave' 'Heading2'))
+@(
+    'Plataforma Django, base de datos PostgreSQL/Supabase y despliegue en Vercel para pruebas.',
+    'Sistema de autenticación, roles, panel de gestión y flujo de reservas.',
+    'Integración preparada para pagos con tarjeta, transferencia y pago físico.',
+    'Marca PetNexo, documentación de entrega y material comercial para demostraciones.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Actividades clave' 'Heading2'))
+@(
+    'Desarrollo, mantenimiento y mejora continua de la plataforma.',
+    'Onboarding de locales: carga de servicios, horarios, sucursales y datos del negocio.',
+    'Pruebas de calidad antes de activar cada local.',
+    'Soporte, monitoreo de errores y análisis de métricas de uso.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Socios clave' 'Heading2'))
+@(
+    'Supabase como proveedor de base de datos PostgreSQL.',
+    'Vercel como plataforma de despliegue para pruebas y demostración.',
+    'Google Cloud para autenticación con cuentas de Google.',
+    'Datafast u otra pasarela local para cobros con tarjeta.',
+    'Locales piloto que permitan validar el producto en condiciones reales.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Estructura de costos' 'Heading2'))
+@(
+    'Hosting, base de datos, dominio, correos y herramientas de monitoreo.',
+    'Comisiones de pasarela de pago.',
+    'Tiempo de desarrollo, soporte y mantenimiento.',
+    'Marketing, ventas, demostraciones y capacitación.',
+    'Costos legales, políticas de privacidad, términos de uso y protección de datos.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-PageBreak))
+$body.Add((Add-Paragraph 'Validación del modelo de negocio' 'Heading1'))
+$body.Add((Add-Paragraph 'Para validar PetNexo se recomienda trabajar con un MVP funcional en uno o dos locales reales. La validación debe medir si el sistema resuelve el problema de agenda, mejora la experiencia del cliente y si el dueño del local estaría dispuesto a pagar una suscripción.'))
+
+$body.Add((Add-Paragraph 'Hipótesis principales' 'Heading2'))
+@(
+    'Los locales están dispuestos a pagar desde $25 mensuales si el sistema reduce tiempo operativo y mejora reservas.',
+    'Los clientes finales prefieren reservar desde una página web si el proceso es rápido y claro.',
+    'El seguimiento de mascota aumenta confianza y mejora la percepción del servicio.',
+    'Las reseñas y calificaciones ayudan al local a mejorar reputación y conversión.',
+    'La gestión por sucursales es necesaria para locales con más de un punto de atención.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Métricas para validar' 'Heading2'))
+@(
+    'Número de citas agendadas por semana desde la plataforma.',
+    'Porcentaje de citas completadas frente a canceladas.',
+    'Tiempo promedio que el administrador tarda en registrar o confirmar una cita.',
+    'Cantidad de clientes registrados y mascotas creadas.',
+    'Calificación promedio por servicio y comentarios recibidos.',
+    'Ingresos generados por suscripciones y tasa de renovación.',
+    'Uso de métodos de pago: tarjeta, transferencia y pago físico.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Experimentos de validación' 'Heading2'))
+@(
+    'Piloto con un local durante 30 días usando plan gratuito o demo controlada.',
+    'Comparar reservas manuales frente a reservas digitales antes y después del piloto.',
+    'Entrevistar al dueño del local sobre facilidad de uso, valor percibido y disposición de pago.',
+    'Pedir a clientes finales que agenden una cita y califiquen la experiencia.',
+    'Probar dos precios de suscripción para conocer sensibilidad al precio.',
+    'Medir si los recordatorios, seguimiento y reseñas aumentan recompra.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Estado del producto' 'Heading1'))
+@(
+    'Página pública parametrizable por negocio.',
+    'Catálogo de servicios editable por administrador del local.',
+    'Registro, login tradicional y preparación para autenticación con Google.',
+    'Agenda con fecha, hora, mascota, servicio y sucursal.',
+    'Panel de administración para citas, servicios, sucursales y configuración.',
+    'Seguimiento de mascota y calificaciones con estrellas.',
+    'Planes de suscripción y flujo de pago preparado.',
+    'Chatbot de asistencia básica.',
+    'Preparación para despliegue en Vercel con variables de entorno.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Riesgos y pendientes antes de salir al público' 'Heading1'))
+@(
+    'Probar todas las migraciones en Supabase real y no solo en SQLite local.',
+    'Configurar credenciales reales de Google OAuth y validar el callback en producción.',
+    'Configurar pasarela de pagos real para que el dinero llegue a la cuenta del dueño de PetNexo.',
+    'Activar DEBUG=False, SECRET_KEY segura, ALLOWED_HOSTS y CSRF_TRUSTED_ORIGINS con dominio final.',
+    'Crear política de privacidad, términos de uso y proceso de soporte.',
+    'Definir respaldo de base de datos y monitoreo de errores.',
+    'Realizar pruebas con roles: dueño PetNexo, administrador del local y cliente final.',
+    'Validar diseño responsive en celular, tablet y escritorio.'
+) | ForEach-Object { $body.Add((Add-Bullet $_)) }
+
+$body.Add((Add-Paragraph 'Conclusión' 'Heading1'))
+$body.Add((Add-Paragraph 'PetNexo tiene una propuesta de negocio digital viable porque ataca una necesidad real de locales de cuidado de mascotas: ordenar reservas, mejorar comunicación con clientes, mostrar servicios, gestionar pagos y profesionalizar la atención. El modelo por suscripción permite ingresos recurrentes y puede escalar a distintos locales si se completa la validación técnica, comercial y operativa. Para llevarlo al mercado se recomienda ejecutar un piloto controlado, medir resultados durante 30 días y ajustar precios, funciones y soporte según la respuesta de los primeros usuarios.'))
+
+$bodyXml = $body -join "`n"
+$documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + $bodyXml + '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>'
+
+$contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>'
+$rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'
+$docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/></Relationships>'
+$styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="120" w:line="280" w:lineRule="auto"/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/><w:color w:val="1F2937"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="220"/></w:pPr><w:rPr><w:b/><w:color w:val="00685F"/><w:sz w:val="40"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180"/></w:pPr><w:rPr><w:color w:val="475569"/><w:sz w:val="24"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="320" w:after="140"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="0F172A"/><w:sz w:val="30"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="220" w:after="100"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:color w:val="00685F"/><w:sz w:val="25"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="720"/></w:pPr></w:style></w:styles>'
+$numbering = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>'
+
+[System.IO.File]::WriteAllText((Join-Path $tmp '[Content_Types].xml'), $contentTypes, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText((Join-Path $tmp '_rels\.rels'), $rels, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText((Join-Path $tmp 'word\_rels\document.xml.rels'), $docRels, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText((Join-Path $tmp 'word\document.xml'), $documentXml, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText((Join-Path $tmp 'word\styles.xml'), $styles, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText((Join-Path $tmp 'word\numbering.xml'), $numbering, [System.Text.Encoding]::UTF8)
+
+if (Test-Path $out) {
+    Remove-Item $out -Force
+}
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory($tmp, $out)
+Remove-Item $tmp -Recurse -Force
+
+Get-Item $out
+

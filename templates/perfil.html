@@ -3,54 +3,106 @@
 {% block title %}Mi Perfil - {{ business.name }}{% endblock %}
 
 {% block content %}
-<div class="py-12 max-w-3xl mx-auto px-4 sm:px-6">
-    <div class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/80 shadow-xl">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center font-bold">
-                <span class="material-symbols-outlined text-2xl">manage_accounts</span>
+<div class="py-10 max-w-5xl mx-auto px-4 sm:px-6">
+    <div class="rounded-3xl bg-white border border-slate-200/80 shadow-xl overflow-hidden">
+        <div class="bg-slate-950 text-white p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-teal-400/15 text-teal-200 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-3xl">manage_accounts</span>
+                </div>
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-widest text-teal-200">Cuenta del cliente</span>
+                    <h1 class="font-headline font-black text-3xl mt-1">Mi Perfil</h1>
+                    <p class="text-slate-300 text-sm mt-1">Datos para confirmar citas, pagos y avisos del seguimiento.</p>
+                </div>
             </div>
-            <div>
-                <h1 class="font-headline font-black text-2xl sm:text-3xl text-slate-900">Mi Perfil</h1>
-                <p class="text-slate-500 text-sm">Datos de contacto para confirmar citas y avisarte cuando tu mascota esté lista.</p>
+            <div class="rounded-2xl bg-white/10 border border-white/10 px-4 py-3 text-sm">
+                <span class="block text-slate-300 text-xs">Usuario</span>
+                <span class="font-bold">{{ request.user.username }}</span>
             </div>
         </div>
 
-        <form method="post" class="space-y-5">
+        <form method="post" class="p-6 sm:p-8 space-y-7">
             {% csrf_token %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Nombre</label>
-                    {{ form.first_name }}
+
+            <section>
+                <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Información personal</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Nombre</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Apellido</label>
+                        {{ form.last_name }}
+                    </div>
                 </div>
-                <div>
-                    <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Apellido</label>
-                    {{ form.last_name }}
+            </section>
+
+            <section>
+                <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Contacto</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Correo</label>
+                        {{ form.email }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Teléfono</label>
+                        {{ form.telefono }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Contacto preferido</label>
+                        {{ form.contacto_preferido }}
+                    </div>
                 </div>
-            </div>
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Correo</label>
-                {{ form.email }}
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Teléfono</label>
-                    {{ form.telefono }}
+            </section>
+
+            <section>
+                <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Ubicación</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Dirección</label>
+                        {{ form.direccion }}
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Barrio o sector</label>
+                        {{ form.barrio }}
+                    </div>
                 </div>
-                <div>
-                    <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Contacto preferido</label>
-                    {{ form.contacto_preferido }}
-                </div>
+            </section>
+
+            <div class="flex justify-end">
+                <button class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800 shadow-md flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-lg">save</span>
+                    Guardar datos
+                </button>
             </div>
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Dirección</label>
-                {{ form.direccion }}
-            </div>
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Barrio o sector</label>
-                {{ form.barrio }}
-            </div>
-            <button class="w-full py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800">Guardar datos</button>
         </form>
+
+        {% if not request.user.is_staff and not request.user.is_superuser %}
+            <div class="border-t border-slate-100 p-6 sm:p-8 bg-slate-50/80">
+                <div class="rounded-3xl border border-red-200 bg-white p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div class="flex gap-4 items-start">
+                        <div class="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-2xl">delete</span>
+                        </div>
+                        <div>
+                            <h2 class="font-headline font-black text-xl text-slate-900">Eliminar cuenta</h2>
+                            <p class="text-sm text-slate-600 mt-1">
+                                Esta accion elimina tu usuario y ya no podras acceder a tus mascotas, citas o historial desde esta cuenta.
+                            </p>
+                        </div>
+                    </div>
+                    <form method="post" action="{% url 'eliminar_perfil_cliente' %}" onsubmit="return confirm('Estas seguro de eliminar tu cuenta? Esta accion no se puede deshacer.');">
+                        {% csrf_token %}
+                        <button class="w-full lg:w-auto px-5 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-700 font-headline font-bold hover:bg-red-100 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-lg">delete_forever</span>
+                            Eliminar mi cuenta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -62,8 +62,8 @@ class Command(BaseCommand):
 
         servicios_data = [
             {
-                'nombre': 'Bano y spa para mascotas',
-                'descripcion': 'Bano relajante con shampoo hipoalergenico, secado profesional, cepillado, limpieza de oidos y corte de unas.',
+                'nombre': 'Baño y spa para mascotas',
+                'descripcion': 'Baño relajante con shampoo hipoalergenico, secado profesional, cepillado, limpieza de oidos y corte de unas.',
                 'categoria': 'bano',
                 'precio': 18.00,
                 'duracion_minutos': 45,
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             },
             {
                 'nombre': 'Peluqueria integral completa',
-                'descripcion': 'Servicio completo con bano nutritivo, corte, limpieza, pedicura y acabado estetico.',
+                'descripcion': 'Servicio completo con baño nutritivo, corte, limpieza, pedicura y acabado estético.',
                 'categoria': 'peluqueria',
                 'precio': 32.00,
                 'duracion_minutos': 75,
@@ -90,7 +90,7 @@ class Command(BaseCommand):
             },
             {
                 'nombre': 'Higiene y limpieza de oidos',
-                'descripcion': 'Recorte de zonas higienicas, limpieza de oidos y cuidados basicos de higiene.',
+                'descripcion': 'Recorte de zonas higienicas, limpieza de oidos y cuidados b\u00e1sicos de higiene.',
                 'categoria': 'salud',
                 'precio': 12.00,
                 'duracion_minutos': 30,
@@ -99,7 +99,7 @@ class Command(BaseCommand):
             },
             {
                 'nombre': 'Tratamiento deslanado',
-                'descripcion': 'Tecnica para retirar pelo muerto y reducir caida en mascotas con manto abundante.',
+                'descripcion': 'T\u00e9cnica para retirar pelo muerto y reducir caida en mascotas con manto abundante.',
                 'categoria': 'especial',
                 'precio': 28.00,
                 'duracion_minutos': 60,
@@ -120,7 +120,7 @@ class Command(BaseCommand):
         for servicio_data in servicios_data:
             Servicio.objects.get_or_create(negocio=negocio, nombre=servicio_data['nombre'], defaults=servicio_data)
 
-        self.stdout.write(self.style.SUCCESS('Servicios del catalogo registrados.'))
+        self.stdout.write(self.style.SUCCESS('Servicios del cat\u00e1logo registrados.'))
 
         mascota_1, _ = Mascota.objects.get_or_create(
             propietario=cliente,
@@ -151,7 +151,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Mascotas de prueba registradas.'))
 
         servicio_corte = Servicio.objects.filter(negocio=negocio, nombre__icontains='Corte').first()
-        servicio_bano = Servicio.objects.filter(negocio=negocio, nombre__icontains='Bano').first()
+        servicio_bano = Servicio.objects.filter(negocio=negocio, nombre__icontains='Baño').first()
 
         hoy = datetime.date.today()
         manana = hoy + datetime.timedelta(days=1)

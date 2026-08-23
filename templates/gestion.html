@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Panel de Gestion Administrador - {{ business.name }}{% endblock %}
+{% block title %}Panel de Gestión Administrador - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,7 +11,7 @@
                 {% if user.is_superuser %}Dueño PetNexo{% else %}Administrador del local{% endif %}
             </div>
             <h1 class="font-headline font-black text-3xl text-slate-900">Panel de Control & Gestión de Citas</h1>
-            <p class="text-slate-500 text-sm">Administra reservas, estados de atencion y catalogo de servicios de {{ business.name }}.</p>
+            <p class="text-slate-500 text-sm">Administra reservas, estados de atención y catálogo de servicios de {{ business.name }}.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             {% if user.is_superuser %}
@@ -23,7 +23,7 @@
             {% if user.is_staff and not user.is_superuser %}
                 <a href="{% url 'suscripcion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-base">workspace_premium</span>
-                    <span>Suscripcion</span>
+                    <span>Suscripción</span>
                 </a>
             {% endif %}
             <a href="{% url 'configuracion_negocio' %}" class="px-4 py-2.5 rounded-xl bg-[#00685f] hover:bg-teal-800 text-white font-semibold text-xs transition flex items-center gap-2">
@@ -48,7 +48,7 @@
                 <div>
                     <p class="text-xs font-black uppercase tracking-wider {% if licencia_actual.activa %}text-[#00685f]{% else %}text-red-700{% endif %}">Licencia PetNexo</p>
                     <h2 class="font-headline font-black text-xl text-slate-900">{{ licencia_actual.suscripcion.plan.nombre }} - {{ licencia_actual.suscripcion.get_estado_display }}</h2>
-                    <p class="text-sm text-slate-600">Vence el {{ licencia_actual.suscripcion.fecha_vencimiento|date:"d/m/Y" }}. Dias restantes: {{ licencia_actual.dias_restantes }}.</p>
+                    <p class="text-sm text-slate-600">Vence el {{ licencia_actual.suscripcion.fecha_vencimiento|date:"d/m/Y" }}. Días restantes: {{ licencia_actual.dias_restantes }}.</p>
                     {% if licencia_actual.mensaje %}
                         <p class="text-sm font-semibold mt-1 {% if licencia_actual.activa %}text-amber-800{% else %}text-red-700{% endif %}">{{ licencia_actual.mensaje }}</p>
                     {% endif %}
@@ -77,7 +77,7 @@
     {% else %}
         <div class="rounded-3xl p-5 border border-sky-200 bg-sky-50 mb-8 text-sky-900">
             <p class="font-headline font-bold">Licencia PetNexo sin configurar</p>
-            <p class="text-sm">Crea un plan y una suscripcion desde Django Admin para activar el control de pagos del software.</p>
+            <p class="text-sm">Crea un plan y una suscripción desde Django Admin para activar el control de pagos del software.</p>
         </div>
     {% endif %}
 
@@ -115,8 +115,8 @@
             <span class="font-headline font-black text-3xl text-slate-900">{{ pagos_pendientes }}</span>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <span class="text-xs font-semibold text-slate-400 block mb-1">Calificacion Promedio</span>
-            <span class="font-headline font-black text-3xl text-slate-900">{{ promedio_calificacion }}/5</span>
+            <span class="text-xs font-semibold text-slate-400 block mb-1">Calificación Promedio</span>
+            <span class="font-headline font-black text-3xl text-slate-900">{{ promedio_calificación }}/5</span>
         </div>
     </div>
 
@@ -178,7 +178,14 @@
                 <a href="{% url 'gestion_admin' %}?estado={{ estado_filtro }}&sucursal={{ sucursal.id }}" class="px-3.5 py-2 rounded-xl transition {% if sucursal_filtro == sucursal.id|stringformat:'s' %}bg-[#00685f] text-white{% else %}bg-teal-50 text-[#00685f] hover:bg-teal-100{% endif %}">
                     {{ sucursal.nombre }}
                 </a>
+                <a href="{% url 'editar_sucursal' sucursal.id %}" class="px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-[#00685f] hover:border-teal-200 transition" title="Editar sucursal">
+                    <span class="material-symbols-outlined text-sm">edit</span>
+                </a>
             {% endfor %}
+            <a href="{% url 'nueva_sucursal' %}" class="px-3.5 py-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800 transition inline-flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">add_business</span>
+                Nueva sucursal
+            </a>
         </div>
 
         {% if citas %}
@@ -237,7 +244,7 @@
                                             <option value="PAGADO" {% if cita.estado_pago == 'PAGADO' %}selected{% endif %}>Pagado</option>
                                         </select>
                                         <div class="flex gap-2">
-                                            <select name="metodo_pago" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
+                                            <select name="método_pago" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
                                                 <option value="EFECTIVO" {% if cita.metodo_pago == 'EFECTIVO' %}selected{% endif %}>Efectivo</option>
                                                 <option value="TRANSFERENCIA" {% if cita.metodo_pago == 'TRANSFERENCIA' %}selected{% endif %}>Transferencia</option>
                                                 <option value="TARJETA" {% if cita.metodo_pago == 'TARJETA' %}selected{% endif %}>Tarjeta</option>
@@ -295,67 +302,70 @@
         {% endif %}
     </div>
 
-    <!-- Services Management -->
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm">
-        <h2 class="font-headline font-bold text-xl text-slate-900 mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined text-[#00685f]">inventory_2</span>
-            Gestión de Estado de Servicios en Catálogo
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for s in servicios %}
-                <div class="p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">{{ s.nombre }}</h4>
-                        <p class="text-xs text-slate-500">{{ business.currency_symbol }}{{ s.precio }} - {{ s.duracion_minutos }} min</p>
-                    </div>
-
-                    <form method="post" action="{% url 'toggle_servicio' s.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
-                            {% if s.activo %}Activo{% else %}Inactivo{% endif %}
-                        </button>
-                    </form>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mt-8">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <h2 class="font-headline font-bold text-xl text-slate-900 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[#00685f]">edit_square</span>
-                Editor de servicios del catalogo
+    {% if user.is_staff and not user.is_superuser %}
+        <!-- Services Management -->
+        <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm">
+            <h2 class="font-headline font-bold text-xl text-slate-900 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#00685f]">inventory_2</span>
+                Gestión de Estado de Servicios en Catálogo
             </h2>
-            <a href="{% url 'nuevo_servicio' %}" class="px-4 py-2.5 rounded-xl bg-[#00685f] text-white font-bold text-xs hover:bg-teal-800 inline-flex items-center gap-2">
-                <span class="material-symbols-outlined text-base">add</span>
-                Nuevo servicio
-            </a>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for s in servicios %}
-                <div class="p-4 rounded-2xl border border-slate-200">
-                    <div class="flex items-start justify-between gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for s in servicios %}
+                    <div class="p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm">{{ s.nombre }}</h4>
-                            <p class="text-xs text-slate-500">{{ s.get_categoria_display }} · {{ s.duracion_minutos }} min</p>
+                            <p class="text-xs text-slate-500">{{ business.currency_symbol }}{{ s.precio }} - {{ s.duracion_minutos }} min</p>
                         </div>
-                        <span class="font-headline font-black text-[#00685f]">{{ business.currency_symbol }}{{ s.precio }}</span>
-                    </div>
-                    <div class="mt-4 flex items-center gap-2">
-                        <a href="{% url 'editar_servicio' s.id %}" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-center font-bold text-xs hover:bg-slate-800">
-                            Editar servicio
-                        </a>
+
                         <form method="post" action="{% url 'toggle_servicio' s.id %}">
                             {% csrf_token %}
-                            <button type="submit" class="px-3 py-2 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                            <button type="submit" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
                                 {% if s.activo %}Activo{% else %}Inactivo{% endif %}
                             </button>
                         </form>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         </div>
-    </div>
+
+        <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mt-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <h2 class="font-headline font-bold text-xl text-slate-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[#00685f]">edit_square</span>
+                    Editor de servicios del catálogo
+                </h2>
+                <a href="{% url 'nuevo_servicio' %}" class="px-4 py-2.5 rounded-xl bg-[#00685f] text-white font-bold text-xs hover:bg-teal-800 inline-flex items-center gap-2">
+                    <span class="material-symbols-outlined text-base">add</span>
+                    Nuevo servicio
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for s in servicios %}
+                    <div class="p-4 rounded-2xl border border-slate-200">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">{{ s.nombre }}</h4>
+                                <p class="text-xs text-slate-500">{{ s.get_categoria_display }} · {{ s.duracion_minutos }} min</p>
+                            </div>
+                            <span class="font-headline font-black text-[#00685f]">{{ business.currency_symbol }}{{ s.precio }}</span>
+                        </div>
+                        <div class="mt-4 flex items-center gap-2">
+                            <a href="{% url 'editar_servicio' s.id %}" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-center font-bold text-xs hover:bg-slate-800">
+                                Editar servicio
+                            </a>
+                            <form method="post" action="{% url 'toggle_servicio' s.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="px-3 py-2 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                                    {% if s.activo %}Activo{% else %}Inactivo{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

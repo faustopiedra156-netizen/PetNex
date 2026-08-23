@@ -1,9 +1,13 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
     path('health/', views.health_check_view, name='health_check'),
     path('', views.home_view, name='home'),
+    path('privacidad/', views.politica_privacidad_view, name='politica_privacidad'),
+    path('terminos/', views.terminos_condiciones_view, name='terminos_condiciones'),
+    path('soporte/', views.soporte_view, name='soporte'),
     path('servicios/', views.servicios_view, name='servicios'),
     path('contacto/', views.contacto_view, name='contacto'),
     path('chatbot/', views.chatbot_view, name='chatbot'),
@@ -20,10 +24,12 @@ urlpatterns = [
     path('mascotas/editar/<int:mascota_id>/', views.editar_mascota_view, name='editar_mascota'),
     path('mascotas/eliminar/<int:mascota_id>/', views.eliminar_mascota_view, name='eliminar_mascota'),
     path('perfil/', views.perfil_cliente_view, name='perfil_cliente'),
+    path('perfil/eliminar/', views.eliminar_perfil_cliente_view, name='eliminar_perfil_cliente'),
     
     # Admin / Staff
     path('gestion/', views.gestion_admin_view, name='gestion_admin'),
     path('gestion/cuentas/', views.cuentas_admin_view, name='cuentas_admin'),
+    path('gestion/cuentas/<int:user_id>/eliminar/', views.eliminar_cuenta_sistema_view, name='eliminar_cuenta_sistema'),
     path('gestion/configuracion/', views.configuracion_negocio_view, name='configuracion_negocio'),
     path('gestion/suscripcion/', views.suscripcion_negocio_view, name='suscripcion_negocio'),
     path('gestion/suscripcion/pagar/', views.crear_pago_suscripcion_view, name='crear_pago_suscripcion'),
@@ -35,9 +41,39 @@ urlpatterns = [
     path('gestion/servicio/nuevo/', views.servicio_form_view, name='nuevo_servicio'),
     path('gestion/servicio/<int:servicio_id>/editar/', views.servicio_form_view, name='editar_servicio'),
     path('gestion/servicio/<int:servicio_id>/toggle/', views.toggle_servicio_view, name='toggle_servicio'),
+    path('gestion/sucursal/nueva/', views.sucursal_form_view, name='nueva_sucursal'),
+    path('gestion/sucursal/<int:sucursal_id>/editar/', views.sucursal_form_view, name='editar_sucursal'),
 
     # Auth
     path('registro/', views.registro_view, name='registro'),
     path('login/', views.login_usuario_view, name='login'),
     path('logout/', views.logout_usuario_view, name='logout'),
+    path(
+        'recuperar-contrasena/',
+        auth_views.PasswordResetView.as_view(
+            template_name='password_reset.html',
+            email_template_name='password_reset_email.html',
+            subject_template_name='password_reset_subject.txt',
+            success_url='/recuperar-contrasena/enviado/',
+        ),
+        name='password_reset',
+    ),
+    path(
+        'recuperar-contrasena/enviado/',
+        auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'),
+        name='password_reset_done',
+    ),
+    path(
+        'recuperar-contrasena/<uidb64>/<token>/',
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name='password_reset_confirm.html',
+            success_url='/recuperar-contrasena/completado/',
+        ),
+        name='password_reset_confirm',
+    ),
+    path(
+        'recuperar-contrasena/completado/',
+        auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'),
+        name='password_reset_complete',
+    ),
 ]

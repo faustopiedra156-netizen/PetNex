@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Sesion expirada - {{ business.name }}{% endblock %}
+{% block title %}Sesión expirada - {{ business.name }}{% endblock %}
 
 {% block content %}
 <div class="py-16 max-w-xl mx-auto px-4">
@@ -8,7 +8,7 @@
         <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-700 mx-auto flex items-center justify-center mb-4">
             <span class="material-symbols-outlined text-3xl">refresh</span>
         </div>
-        <h1 class="font-headline font-black text-2xl text-slate-900">La pagina necesita actualizarse</h1>
+        <h1 class="font-headline font-black text-2xl text-slate-900">La página necesita actualizarse</h1>
         <p class="text-slate-600 text-sm mt-3">
             Por seguridad, Django rechazo el formulario porque la sesion o el token de seguridad ya no coincide.
         </p>
@@ -17,7 +17,7 @@
                 Volver al inicio
             </a>
             <button onclick="window.location.reload()" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50">
-                Recargar pagina
+                Recargar página
             </button>
         </div>
         {% if reason %}

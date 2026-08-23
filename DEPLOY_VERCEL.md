@@ -11,7 +11,8 @@ DATABASE_URL=postgresql://usuario:password@host:puerto/postgres
 APP_NAME=PetNexo
 ALLOWED_HOSTS=.vercel.app
 CSRF_TRUSTED_ORIGINS=https://*.vercel.app
-SECURE_SSL_REDIRECT=False
+SECURE_SSL_REDIRECT=True
+SECURE_HSTS_SECONDS=31536000
 ```
 
 Para Supabase usa la URL del Session Pooler o Transaction Pooler. No uses SQLite en Vercel para pruebas reales.
@@ -25,6 +26,8 @@ $env:DATABASE_URL="postgresql://usuario:password@host:puerto/postgres"
 $env:DEBUG="False"
 py manage.py migrate
 ```
+
+Antes de aplicar la migracion de restriccion de horarios, revisa que no existan citas activas duplicadas en la misma sucursal, fecha y hora. Si existen, cancela o reprograma una de ellas desde el panel.
 
 Si quieres cargar datos iniciales:
 

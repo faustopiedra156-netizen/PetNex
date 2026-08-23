@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Politica de privacidad - {{ business.app_name }}{% endblock %}
+
+{% block content %}
+<section class="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-black uppercase">
+            <span class="material-symbols-outlined text-sm">lock</span>
+            Privacidad
+        </span>
+        <h1 class="font-headline font-black text-3xl text-slate-900 mt-4">Politica de privacidad</h1>
+        <p class="text-sm text-slate-500 mt-2">Ultima actualizacion: agosto de 2026</p>
+
+        <div class="mt-8 space-y-6 text-sm leading-7 text-slate-600">
+            <p>{{ business.app_name }} permite gestiónar citas, mascotas, servicios, pagos y seguimiento operativo para locales de cuidado de mascotas.</p>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Datos que se recopilan</h2>
+                <p>Podemos guardar nombre, correo, teléfono, dirección, datos de mascotas, citas, pagos, calificaciónes y mensajes enviados mediante los formularios del sistema.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Uso de la información</h2>
+                <p>La información se usa para crear cuentas, agendar citas, enviar notificaciones, registrar pagos, mostrar seguimiento y mejorar la atención del negocio.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Pagos y proveedores externos</h2>
+                <p>Los pagos con tarjeta son procesados por proveedores externos configurados por el negocio. {{ business.app_name }} no almacena numeros completos de tarjetas ni codigos de seguridad.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Derechos del usuario</h2>
+                <p>El usuario puede solicitar actualizacion, correccion o eliminacion de sus datos escribiendo a {{ business.email }}.</p>
+            </div>
+
+            <div>
+                <h2 class="font-headline font-bold text-lg text-slate-900 mb-2">Contacto</h2>
+                <p>Para consultas de privacidad escribe a {{ business.email }} o comúnicate al {{ business.phone }}.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

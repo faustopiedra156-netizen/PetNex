@@ -3,67 +3,102 @@
 {% block title %}{{ titulo }} - {{ business.name }}{% endblock %}
 
 {% block content %}
-<div class="py-12 max-w-2xl mx-auto px-4 sm:px-6">
-    <div class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/80 shadow-xl">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center font-bold">
-                <span class="material-symbols-outlined text-2xl">pets</span>
-            </div>
-            <div>
-                <h1 class="font-headline font-black text-2xl text-slate-900">{{ titulo }}</h1>
-                <p class="text-slate-500 text-sm">Completa los datos de la ficha técnica de tu mascota.</p>
-            </div>
-        </div>
-
-        <form method="post" class="space-y-5">
-            {% csrf_token %}
-
-            <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">Nombre de la Mascota *</label>
-                {{ form.nombre }}
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">Especie *</label>
-                    {{ form.especie }}
-                </div>
-                <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">Raza *</label>
-                    {{ form.raza }}
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">Edad (Años)</label>
-                    {{ form.edad }}
-                </div>
-                <div>
-                    <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">Peso Aproximado (kg)</label>
-                    {{ form.peso_kg }}
+<div class="py-10 px-4 sm:px-6">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-6 items-start">
+        <aside class="rounded-3xl bg-[#00685f] text-white p-7 sm:p-8 shadow-xl overflow-hidden relative">
+            <div class="absolute -right-12 -top-12 w-36 h-36 rounded-full bg-white/10"></div>
+            <div class="absolute -left-10 bottom-10 w-28 h-28 rounded-full bg-teal-300/20"></div>
+            <div class="relative">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold uppercase">
+                    <span class="material-symbols-outlined text-sm">pets</span>
+                    Ficha de mascota
+                </span>
+                <h1 class="font-headline font-black text-3xl sm:text-4xl mt-5 leading-tight">{{ titulo }}</h1>
+                <p class="text-teal-50/90 text-sm leading-relaxed mt-4">
+                    Registra datos útiles para que el local pueda atender a cada mascota con más seguridad y contexto.
+                </p>
+                <div class="mt-8 grid gap-3 text-sm">
+                    <div class="flex gap-3 items-start">
+                        <span class="material-symbols-outlined text-teal-200">verified</span>
+                        <span>Datos básicos para identificar a la mascota.</span>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <span class="material-symbols-outlined text-teal-200">medical_information</span>
+                        <span>Notas medicas, alergias o cuidados especiales.</span>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <span class="material-symbols-outlined text-teal-200">photo_camera</span>
+                        <span>Foto opcional para reconocerla facilmente.</span>
+                    </div>
                 </div>
             </div>
+        </aside>
 
-            <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">Indicaciones / Cuidados Médicos o Alergias</label>
-                {{ form.notas_medicas }}
+        <section class="bg-white rounded-3xl border border-slate-200/80 shadow-xl">
+            <div class="border-b border-slate-100 p-6 sm:p-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] flex items-center justify-center">
+                        <span class="material-symbols-outlined text-2xl">assignment</span>
+                    </div>
+                    <div>
+                        <h2 class="font-headline font-black text-2xl text-slate-900">Datos de la ficha</h2>
+                        <p class="text-slate-500 text-sm">Completa la información antes de agendar una cita.</p>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label class="block font-headline font-semibold text-sm text-slate-800 mb-1">URL de Foto (Opcional)</label>
-                {{ form.foto_url }}
-            </div>
+            <form method="post" class="p-6 sm:p-8 space-y-6">
+                {% csrf_token %}
 
-            <div class="pt-4 flex gap-3">
-                <button type="submit" class="flex-1 py-3 px-6 rounded-2xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold text-sm shadow-md transition">
-                    Guardar Ficha
-                </button>
-                <a href="{% url 'mis_mascotas' %}" class="py-3 px-6 rounded-2xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition">
-                    Cancelar
-                </a>
-            </div>
-        </form>
+                <div>
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">Nombre de la mascota *</label>
+                    {{ form.nombre }}
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-headline font-bold text-sm text-slate-800 mb-2">Especie *</label>
+                        {{ form.especie }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-sm text-slate-800 mb-2">Raza *</label>
+                        {{ form.raza }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-headline font-bold text-sm text-slate-800 mb-2">Edad</label>
+                        {{ form.edad }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-sm text-slate-800 mb-2">Peso aproximado</label>
+                        {{ form.peso_kg }}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">Indicaciones medicas o alergias</label>
+                    {{ form.notas_medicas }}
+                    <p class="text-xs text-slate-500 mt-2">Ejemplo: piel sensible, medicacion, alergias o comportamiento especial.</p>
+                </div>
+
+                <div>
+                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">URL de foto</label>
+                    {{ form.foto_url }}
+                </div>
+
+                <div class="pt-2 flex flex-col sm:flex-row gap-3">
+                    <button type="submit" class="flex-1 py-3.5 px-6 rounded-2xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-lg">save</span>
+                        Guardar ficha
+                    </button>
+                    <a href="{% url 'mis_mascotas' %}" class="py-3.5 px-6 rounded-2xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50 transition text-center">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </section>
     </div>
 </div>
 {% endblock %}

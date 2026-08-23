@@ -84,7 +84,7 @@
                             </a>
                             {% if user.is_staff and not user.is_superuser %}
                                 <a href="{% url 'suscripcion_negocio' %}" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold text-xs flex items-center gap-1 hover:bg-slate-800 transition">
-                                    <span class="material-symbols-outlined text-sm">workspace_premium</span> Suscripcion
+                                    <span class="material-symbols-outlined text-sm">workspace_premium</span> Suscripción
                                 </a>
                             {% endif %}
                         {% endif %}
@@ -136,7 +136,7 @@
                 {% if user.is_staff or user.is_superuser %}
                     <a href="{% url 'gestion_admin' %}" class="block px-3 py-2 rounded-xl font-semibold text-amber-800 bg-amber-50">Panel Administración</a>
                     {% if user.is_staff and not user.is_superuser %}
-                        <a href="{% url 'suscripcion_negocio' %}" class="block px-3 py-2 rounded-xl font-semibold text-slate-800 bg-slate-100">Suscripcion</a>
+                        <a href="{% url 'suscripcion_negocio' %}" class="block px-3 py-2 rounded-xl font-semibold text-slate-800 bg-slate-100">Suscripción</a>
                     {% endif %}
                 {% endif %}
                 <a href="{% url 'logout' %}" class="block px-3 py-2 rounded-xl font-medium text-red-600 hover:bg-red-50">Cerrar Sesión</a>
@@ -213,6 +213,7 @@
                         <li><a href="{% url 'servicios' %}" class="hover:text-teal-400 transition">Catálogo de Servicios</a></li>
                         <li><a href="{% url 'agendar_cita' %}" class="hover:text-teal-400 transition">Reservar Cita</a></li>
                         <li><a href="{% url 'mis_citas' %}" class="hover:text-teal-400 transition">Consultar mis Citas</a></li>
+                        <li><a href="{% url 'soporte' %}" class="hover:text-teal-400 transition">Soporte</a></li>
                     </ul>
                 </div>
 
@@ -249,6 +250,11 @@
 
             <div class="pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
                 <p>&copy; 2026 {{ business.name }}. Todos los derechos reservados.</p>
+                <div class="mt-3 flex flex-wrap justify-center gap-4">
+                    <a href="{% url 'politica_privacidad' %}" class="hover:text-teal-400 transition">Política de privacidad</a>
+                    <a href="{% url 'terminos_condiciones' %}" class="hover:text-teal-400 transition">Términos y condiciones</a>
+                    <a href="{% url 'soporte' %}" class="hover:text-teal-400 transition">Soporte</a>
+                </div>
             </div>
         </div>
     </footer>
@@ -281,7 +287,7 @@
                 <div class="flex flex-wrap gap-2 mb-3">
                     <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="Que servicios tienen?">Servicios</button>
                     <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="Como agendo una cita?">Agendar</button>
-                    <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="Como veo el seguimiento de mi mascota?">Seguimiento</button>
+                    <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="¿Cómo veo el seguimiento de mi mascota?">Seguimiento</button>
                 </div>
                 <form id="chatbotForm" class="flex items-center gap-2">
                     {% csrf_token %}

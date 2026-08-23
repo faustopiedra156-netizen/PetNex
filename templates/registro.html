@@ -3,77 +3,107 @@
 {% block title %}Crear Cuenta - {{ business.name }}{% endblock %}
 
 {% block content %}
-<div class="py-12 max-w-md mx-auto px-4">
-    <div class="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xl">
-        <div class="text-center mb-6">
-            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-[#00685f] mx-auto flex items-center justify-center font-bold mb-3">
-                <span class="material-symbols-outlined text-2xl">person_add</span>
+<div class="py-10 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-6 items-stretch">
+        <section class="rounded-3xl bg-slate-950 text-white p-7 sm:p-9 shadow-xl flex flex-col justify-between">
+            <div>
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-400/10 border border-teal-300/20 text-teal-100 text-xs font-bold uppercase">
+                    <span class="material-symbols-outlined text-sm">person_add</span>
+                    Nueva cuenta
+                </span>
+                <h1 class="font-headline font-black text-4xl mt-5 leading-tight">Crea tu cuenta en {{ business.short_name }}</h1>
+                <p class="text-slate-300 text-sm leading-relaxed mt-4">
+                    Agenda citas, registra tus mascotas, revisa pagos y consulta el avance de cada atención desde un solo lugar.
+                </p>
             </div>
-            <h1 class="font-headline font-black text-2xl text-slate-900">Crear Cuenta</h1>
-            <p class="text-xs text-slate-500 mt-1">Registra tu usuario para agendar citas de peluquería</p>
-        </div>
+            <div class="mt-10 grid gap-3 text-sm">
+                <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
+                    <span class="material-symbols-outlined text-teal-200">event_available</span>
+                    <span>Reservas y horarios disponibles en tiempo real.</span>
+                </div>
+                <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
+                    <span class="material-symbols-outlined text-teal-200">pets</span>
+                    <span>Ficha completa para cada mascota registrada.</span>
+                </div>
+                <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
+                    <span class="material-symbols-outlined text-teal-200">star</span>
+                    <span>Calificaciónes y comentarios después de la atención.</span>
+                </div>
+            </div>
+        </section>
 
-        <form method="post" class="space-y-4">
-            {% csrf_token %}
+        <section class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xl">
+            <div class="mb-6">
+                <h2 class="font-headline font-black text-2xl text-slate-900">Datos de acceso</h2>
+                <p class="text-sm text-slate-500 mt-1">Completa la información para crear tu cuenta de cliente.</p>
+            </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="p-4 bg-red-50 text-red-700 rounded-2xl text-sm border border-red-200">
+                        <p class="font-bold mb-2">Revisa estos campos:</p>
+                        {% for field, errors in form.errors.items %}
+                            <p><b>{{ field }}:</b> {{ errors.0 }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Nombre</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Apellido</label>
+                        {{ form.last_name }}
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Nombre</label>
-                    {{ form.first_name }}
+                    <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Nombre de usuario *</label>
+                    {{ form.username }}
                 </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Correo electrónico *</label>
+                        {{ form.email }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Teléfono / WhatsApp</label>
+                        {{ form.telefono }}
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Apellido</label>
-                    {{ form.last_name }}
+                    <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Dirección de referencia</label>
+                    {{ form.direccion }}
                 </div>
-            </div>
 
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Nombre de Usuario *</label>
-                {{ form.username }}
-            </div>
-
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Correo Electrónico *</label>
-                {{ form.email }}
-            </div>
-
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Telefono / WhatsApp</label>
-                {{ form.telefono }}
-            </div>
-
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Direccion de referencia</label>
-                {{ form.direccion }}
-            </div>
-
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Contraseña *</label>
-                {{ form.password }}
-            </div>
-
-            <div>
-                <label class="block font-headline font-semibold text-xs text-slate-700 mb-1">Confirmar Contraseña *</label>
-                {{ form.confirm_password }}
-            </div>
-
-            {% if form.errors %}
-                <div class="p-3 bg-red-50 text-red-700 rounded-xl text-xs">
-                    {% for field, errors in form.errors.items %}
-                        <p><b>{{ field }}:</b> {{ errors.0 }}</p>
-                    {% endfor %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Contraseña *</label>
+                        {{ form.password }}
+                    </div>
+                    <div>
+                        <label class="block font-headline font-bold text-xs text-slate-700 mb-2">Confirmar contraseña *</label>
+                        {{ form.confirm_password }}
+                    </div>
                 </div>
-            {% endif %}
 
-            <button type="submit" class="w-full py-3 rounded-xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold text-sm shadow-md transition">
-                Crear Mi Cuenta
-            </button>
-        </form>
+                <button type="submit" class="w-full py-3.5 rounded-2xl bg-[#00685f] hover:bg-teal-800 text-white font-headline font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-lg">person_add</span>
+                    Crear mi cuenta
+                </button>
+            </form>
 
-        <div class="mt-6 text-center text-xs text-slate-500">
-            Ya tienes cuenta en {{ business.name }}?
-            <a href="{% url 'login' %}" class="text-[#00685f] font-bold hover:underline">Inicia sesión</a>
-        </div>
+            <div class="mt-6 text-center text-sm text-slate-500">
+                Ya tienes cuenta?
+                <a href="{% url 'login' %}" class="text-[#00685f] font-bold hover:underline">Inicia sesion</a>
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}

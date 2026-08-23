@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Soporte - {{ business.app_name }}{% endblock %}
+
+{% block content %}
+<section class="py-12 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-6">
+        <div class="bg-slate-900 text-white rounded-3xl p-8 shadow-xl">
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-teal-100 text-xs font-black uppercase">
+                <span class="material-symbols-outlined text-sm">support_agent</span>
+                Soporte
+            </span>
+            <h1 class="font-headline font-black text-3xl mt-4">Centro de ayuda</h1>
+            <p class="text-sm text-slate-300 mt-3">Encuentra información rápida para clientes, administradores del local y configuración general de {{ business.app_name }}.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
+            <div class="rounded-2xl border border-slate-200 p-5">
+                <h2 class="font-headline font-bold text-lg text-slate-900">Clientes finales</h2>
+                <p class="text-sm text-slate-600 mt-2">Pueden registrarse, guardar mascotas, agendar citas, consultar pagos y revisar el seguimiento de atención.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-5">
+                <h2 class="font-headline font-bold text-lg text-slate-900">Administradores del local</h2>
+                <p class="text-sm text-slate-600 mt-2">Gestiónan servicios, sucursales, horarios, citas, pagos, seguimiento y datos comerciales del negocio.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-5">
+                <h2 class="font-headline font-bold text-lg text-slate-900">Contacto de soporte</h2>
+                <p class="text-sm text-slate-600 mt-2">{{ business.email }} · {{ business.phone }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

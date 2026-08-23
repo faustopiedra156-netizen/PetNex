@@ -1,12 +1,19 @@
+import json
 import os
 from importlib.util import find_spec
 from pathlib import Path
 
 import dj_database_url
-from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env')
+if load_dotenv:
+    load_dotenv(BASE_DIR / '.env')
 
 
 def env_bool(name, default=False):
@@ -43,6 +50,17 @@ def env_int_list(name, default=''):
     return values
 
 
+def env_json(name, default):
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return default
+    return value if isinstance(value, type(default)) else default
+
+
 SECRET_KEY = os.getenv(
     'SECRET_KEY',
     os.getenv('DJANGO_SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
@@ -50,6 +68,9 @@ SECRET_KEY = os.getenv(
 
 DEBUG = env_bool('DEBUG', True)
 APP_NAME = os.getenv('APP_NAME', 'PetNexo')
+
+if not DEBUG and SECRET_KEY.startswith('django-insecure-'):
+    raise ImproperlyConfigured('Configura SECRET_KEY con una clave segura antes de publicar en produccion.')
 
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '127.0.0.1,localhost')
 CSRF_TRUSTED_ORIGINS = env_list(
@@ -194,13 +215,20 @@ ACCOUNT_LOGIN_BY_CODE_REQUIRED = False
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_ADAPTER = 'citas.adapters.PetNexoSocialAccountAdapter'
+
+GOOGLE_LOGIN_ENABLED = env_bool('GOOGLE_LOGIN_ENABLED', False)
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+GOOGLE_LOGIN_CONFIGURED = GOOGLE_LOGIN_ENABLED and bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
-            'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+            'client_id': GOOGLE_CLIENT_ID,
+            'secret': GOOGLE_CLIENT_SECRET,
             'key': '',
         },
         'SCOPE': [
@@ -220,7 +248,6 @@ DATAFAST_ENTITY_ID = os.getenv('DATAFAST_ENTITY_ID', '')
 DATAFAST_AUTHORIZATION = os.getenv('DATAFAST_AUTHORIZATION', '')
 DATAFAST_BRANDS = os.getenv('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
 DATAFAST_TIMEOUT_SECONDS = env_int('DATAFAST_TIMEOUT_SECONDS', 20)
-GOOGLE_LOGIN_ENABLED = env_bool('GOOGLE_LOGIN_ENABLED', False)
 
 APPOINTMENT_OPEN_TIME = os.getenv('APPOINTMENT_OPEN_TIME', '08:30')
 APPOINTMENT_CLOSE_TIME = os.getenv('APPOINTMENT_CLOSE_TIME', '18:30')
@@ -240,13 +267,13 @@ BUSINESS_SHORT_NAME = os.getenv('BUSINESS_SHORT_NAME', BUSINESS_NAME.split()[0])
 BUSINESS_CITY = os.getenv('BUSINESS_CITY', 'Loja')
 BUSINESS_COUNTRY = os.getenv('BUSINESS_COUNTRY', 'Ecuador')
 BUSINESS_COUNTRY_CODE = os.getenv('BUSINESS_COUNTRY_CODE', 'EC')
-BUSINESS_CATEGORY = os.getenv('BUSINESS_CATEGORY', 'peluqueria y estetica para mascotas')
+BUSINESS_CATEGORY = os.getenv('BUSINESS_CATEGORY', 'peluquería y estética para mascotas')
 BUSINESS_TAGLINE = os.getenv('BUSINESS_TAGLINE', 'Cuidado profesional para mascotas')
 BUSINESS_HERO_BADGE = os.getenv('BUSINESS_HERO_BADGE', f'{BUSINESS_CATEGORY.title()} en {BUSINESS_CITY}, {BUSINESS_COUNTRY}')
-BUSINESS_HERO_TITLE = os.getenv('BUSINESS_HERO_TITLE', 'Bano, corte y carino para tu mascota.')
+BUSINESS_HERO_TITLE = os.getenv('BUSINESS_HERO_TITLE', 'Baño, corte y cariño para tu mascota.')
 BUSINESS_HERO_DESCRIPTION = os.getenv(
     'BUSINESS_HERO_DESCRIPTION',
-    f'Ofrecemos banos, cortes, tratamientos de higiene y cuidado estetico con atencion personalizada en {BUSINESS_CITY}.'
+    f'Ofrecemos baños, cortes, tratamientos de higiene y cuidado estético con atenci\u00f3n personalizada en {BUSINESS_CITY}.'
 )
 BUSINESS_CONTACT_TITLE = os.getenv('BUSINESS_CONTACT_TITLE', 'Estamos listos para atender a tu mascota')
 BUSINESS_CONTACT_DESCRIPTION = os.getenv(
@@ -255,7 +282,7 @@ BUSINESS_CONTACT_DESCRIPTION = os.getenv(
 )
 BUSINESS_FOOTER_DESCRIPTION = os.getenv(
     'BUSINESS_FOOTER_DESCRIPTION',
-    f'Centro especializado en estetica, peluqueria y spa para mascotas. Cuidamos a tu companero con amor, higiene y atencion profesional en {BUSINESS_CITY}.'
+    f'Centro especializado en estética, peluquería y spa para mascotas. Cuidamos a tu compañero con amor, higiene y atenci\u00f3n profesional en {BUSINESS_CITY}.'
 )
 BUSINESS_CONTACT_EMAIL = os.getenv('BUSINESS_CONTACT_EMAIL', os.getenv('PETCARE_CONTACT_EMAIL', 'contacto@negocio.com'))
 BUSINESS_CONTACT_PHONE = os.getenv('BUSINESS_CONTACT_PHONE', os.getenv('PETCARE_CONTACT_PHONE', '+593 99 999 9999'))
@@ -263,11 +290,48 @@ BUSINESS_ADDRESS = os.getenv('BUSINESS_ADDRESS', os.getenv('PETCARE_ADDRESS', f'
 BUSINESS_OPENING_HOURS = os.getenv('BUSINESS_OPENING_HOURS', 'Lun - Sab: 08:30 - 18:30')
 BUSINESS_CURRENCY = os.getenv('BUSINESS_CURRENCY', 'USD')
 BUSINESS_CURRENCY_SYMBOL = os.getenv('BUSINESS_CURRENCY_SYMBOL', '$')
-BUSINESS_REVIEW_LABEL = os.getenv('BUSINESS_REVIEW_LABEL', f'Resenas en {BUSINESS_CITY}')
+BUSINESS_REVIEW_LABEL = os.getenv('BUSINESS_REVIEW_LABEL', f'Rese\u00f1as en {BUSINESS_CITY}')
 BUSINESS_LOCATION_LABEL = os.getenv('BUSINESS_LOCATION_LABEL', f'{BUSINESS_CITY} Centro')
 BUSINESS_PRIMARY_CTA = os.getenv('BUSINESS_PRIMARY_CTA', 'Agendar cita')
 BUSINESS_SHOW_DEMO_ACCOUNTS = env_bool('BUSINESS_SHOW_DEMO_ACCOUNTS', DEBUG)
 BUSINESS_TRANSACTION_PREFIX = os.getenv('BUSINESS_TRANSACTION_PREFIX', BUSINESS_SHORT_NAME.upper().replace(' ', '-'))
+HOME_HERO_SLIDES = env_json('HOME_HERO_SLIDES', [
+    {
+        'image': 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=900&q=85',
+        'title': 'Groomers certificados',
+        'text': 'Técnicas sin estr\u00e9s ni anestésicos',
+        'alt': 'Ba\u00f1o profesional para mascotas',
+    },
+    {
+        'image': 'https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?w=900&q=85',
+        'title': 'Cortes con estilo',
+        'text': 'Acabados limpios seg\u00fan raza y pelaje',
+        'alt': 'Corte y estilo para mascotas',
+    },
+    {
+        'image': 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=900&q=85',
+        'title': 'Seguimiento visible',
+        'text': 'Tu mascota avanza etapa por etapa',
+        'alt': 'Cuidado y seguimiento de mascotas',
+    },
+])
+HOME_TRUST_FEATURES = env_json('HOME_TRUST_FEATURES', [
+    {
+        'icon': 'sanitizer',
+        'title': 'Productos hipoalerg\u00e9nicos',
+        'text': 'Cosm\u00e9tica canina de primera l\u00ednea, formulada para cuidar el pH de la piel sensible.',
+    },
+    {
+        'icon': 'spa',
+        'title': 'Ambiente calmado',
+        'text': 'Instalaciones pensadas para reducir ruido, estr\u00e9s y tiempos de espera innecesarios.',
+    },
+    {
+        'icon': 'event_available',
+        'title': 'Reserva f\u00e1cil online',
+        'text': 'Agenda desde el celular, revisa historial y consulta el avance de cada atenci\u00f3n.',
+    },
+])
 BUSINESS_CONFIG = {
     'app_name': APP_NAME,
     'name': BUSINESS_NAME,
@@ -294,7 +358,9 @@ BUSINESS_CONFIG = {
     'primary_cta': BUSINESS_PRIMARY_CTA,
     'show_demo_accounts': BUSINESS_SHOW_DEMO_ACCOUNTS,
     'transaction_prefix': BUSINESS_TRANSACTION_PREFIX,
-    'google_login_enabled': GOOGLE_LOGIN_ENABLED,
+    'google_login_enabled': GOOGLE_LOGIN_CONFIGURED,
+    'hero_slides': HOME_HERO_SLIDES,
+    'trust_features': HOME_TRUST_FEATURES,
 }
 
 PETCARE_CONTACT_EMAIL = BUSINESS_CONTACT_EMAIL
@@ -317,7 +383,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
     SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 31536000)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
