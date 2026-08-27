@@ -61,14 +61,16 @@ def env_json(name, default):
     return value if isinstance(value, type(default)) else default
 
 
-SECRET_KEY = os.getenv(
-    'SECRET_KEY',
-    os.getenv('DJANGO_SECRET_KEY', 'django-insecure-petcare-loja-secret-key-key-loja-2026')
-)
-
-DEBUG = env_bool('DEBUG', True)
+DEBUG = env_bool('DEBUG', False)
+SECRET_KEY = os.getenv('SECRET_KEY', os.getenv('DJANGO_SECRET_KEY', ''))
 APP_NAME = os.getenv('APP_NAME', 'PetNexo')
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'citas.exception_filters.PetNexoExceptionReporterFilter'
 
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-local-development-only'
+    else:
+        raise ImproperlyConfigured('Configura SECRET_KEY antes de publicar en produccion.')
 if not DEBUG and SECRET_KEY.startswith('django-insecure-'):
     raise ImproperlyConfigured('Configura SECRET_KEY con una clave segura antes de publicar en produccion.')
 
@@ -85,6 +87,11 @@ if os.getenv('VERCEL'):
     if vercel_url:
         ALLOWED_HOSTS.append(vercel_url)
         CSRF_TRUSTED_ORIGINS.append(f'https://{vercel_url}')
+
+render_host = os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if render_host:
+    ALLOWED_HOSTS.append(render_host)
+    CSRF_TRUSTED_ORIGINS.append(f'https://{render_host}')
 
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
@@ -103,7 +110,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-    'citas',
+    'citas.apps.CitasConfig',
 ]
 
 WHITENOISE_AVAILABLE = find_spec('whitenoise') is not None
@@ -115,6 +122,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'citas.middleware.SuperuserAdminOnlyMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 ]
@@ -154,6 +162,8 @@ if DATABASE_URL:
             ssl_require=True,
         )
     }
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+    DATABASES['default'].setdefault('OPTIONS', {})['connect_timeout'] = env_int('DATABASE_CONNECT_TIMEOUT_SECONDS', 5)
 else:
     DATABASES = {
         'default': {
@@ -164,8 +174,17 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {'min_length': 4},
+        'OPTIONS': {'min_length': 10},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
 
@@ -179,6 +198,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
@@ -187,9 +208,47 @@ STORAGES = {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if WHITENOISE_AVAILABLE else 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage' if WHITENOISE_AVAILABLE else 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
 }
+
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
+CACHE_DEFAULT_TIMEOUT = env_int('CACHE_DEFAULT_TIMEOUT', 300)
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 2,
+                'SOCKET_TIMEOUT': 2,
+                'CONNECTION_POOL_KWARGS': {'max_connections': env_int('REDIS_MAX_CONNECTIONS', 50)},
+            },
+            'TIMEOUT': CACHE_DEFAULT_TIMEOUT,
+            'KEY_PREFIX': 'petnexo',
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'petnexo-local',
+            'TIMEOUT': CACHE_DEFAULT_TIMEOUT,
+        }
+    }
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+SESSION_CACHE_ALIAS = 'default'
+
+SENTRY_DSN = os.getenv('SENTRY_DSN', '').strip()
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        send_default_pii=False,
+        traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.05')),
+    )
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -213,6 +272,10 @@ ACCOUNT_SIGNUP_FIELDS = ['email*']
 ACCOUNT_LOGIN_BY_CODE_ENABLED = False
 ACCOUNT_LOGIN_BY_CODE_REQUIRED = False
 
+PASSWORD_RESET_CODE_TTL_MINUTES = max(env_int('PASSWORD_RESET_CODE_TTL_MINUTES', 10), 1)
+PASSWORD_RESET_CODE_MAX_ATTEMPTS = max(env_int('PASSWORD_RESET_CODE_MAX_ATTEMPTS', 5), 1)
+PASSWORD_RESET_CODE_RESEND_SECONDS = max(env_int('PASSWORD_RESET_CODE_RESEND_SECONDS', 60), 1)
+
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
@@ -226,11 +289,6 @@ GOOGLE_LOGIN_CONFIGURED = GOOGLE_LOGIN_ENABLED and bool(GOOGLE_CLIENT_ID and GOO
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
-        'APP': {
-            'client_id': GOOGLE_CLIENT_ID,
-            'secret': GOOGLE_CLIENT_SECRET,
-            'key': '',
-        },
         'SCOPE': [
             'profile',
             'email',
@@ -243,11 +301,20 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+# Las credenciales vienen del entorno. No se registra una aplicacion vacia
+# cuando Google aun no esta configurado.
+if GOOGLE_LOGIN_CONFIGURED:
+    SOCIALACCOUNT_PROVIDERS['google']['APP'] = {
+        'client_id': GOOGLE_CLIENT_ID,
+        'secret': GOOGLE_CLIENT_SECRET,
+        'key': '',
+    }
+
 DATAFAST_BASE_URL = os.getenv('DATAFAST_BASE_URL', 'https://test.oppwa.com').rstrip('/')
 DATAFAST_ENTITY_ID = os.getenv('DATAFAST_ENTITY_ID', '')
 DATAFAST_AUTHORIZATION = os.getenv('DATAFAST_AUTHORIZATION', '')
 DATAFAST_BRANDS = os.getenv('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
-DATAFAST_TIMEOUT_SECONDS = env_int('DATAFAST_TIMEOUT_SECONDS', 20)
+DATAFAST_TIMEOUT_SECONDS = env_int('DATAFAST_TIMEOUT_SECONDS', 10)
 
 APPOINTMENT_OPEN_TIME = os.getenv('APPOINTMENT_OPEN_TIME', '08:30')
 APPOINTMENT_CLOSE_TIME = os.getenv('APPOINTMENT_CLOSE_TIME', '18:30')
@@ -376,14 +443,32 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', BUSINESS_CONTACT_EMAIL)
 ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', BUSINESS_CONTACT_EMAIL)
 
+if os.getenv('RENDER') and EMAIL_BACKEND.endswith('console.EmailBackend'):
+    raise ImproperlyConfigured('Configura un proveedor SMTP o transaccional para enviar correos en produccion.')
+
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+X_FRAME_OPTIONS = 'DENY'
+TRUST_X_FORWARDED_FOR = env_bool('TRUST_X_FORWARDED_FOR', False)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': os.getenv('LOG_LEVEL', 'INFO')},
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'citas': {'handlers': ['console'], 'level': os.getenv('LOG_LEVEL', 'INFO'), 'propagate': False},
+    },
+}
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
-    SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 31536000)
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', bool(os.getenv('RENDER')))
+    SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 31536000 if os.getenv('RENDER') else 0)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True

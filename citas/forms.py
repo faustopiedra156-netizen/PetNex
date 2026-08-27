@@ -1,9 +1,10 @@
 from django import forms
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from .models import (
     Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio,
-    Sucursal, SuscripcionNegocio, Negocio,
+    Sucursal, SuscripcionNegocio, Negocio, MensajeContacto,
 )
 import datetime
 
@@ -39,9 +40,11 @@ def generar_horarios_sucursal(sucursal):
 
 
 class MascotaForm(forms.ModelForm):
+    MAX_FOTO_BYTES = 5 * 1024 * 1024
+
     class Meta:
         model = Mascota
-        fields = ['nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto_url']
+        fields = ['nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Ej. Firulais'}),
             'especie': forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'Canino / Felino'}),
@@ -49,8 +52,17 @@ class MascotaForm(forms.ModelForm):
             'edad': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'min': 0, 'max': 30}),
             'peso_kg': forms.NumberInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'step': '0.5'}),
             'notas_medicas': forms.Textarea(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'rows': 3, 'placeholder': 'Alergias, sensible a ruidos, temperamento...'}),
-            'foto_url': forms.URLInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'placeholder': 'https://ejemplo.com/foto.jpg'}),
+            'foto': forms.ClearableFileInput(attrs={
+                'class': 'block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-teal-50 file:px-4 file:py-2.5 file:font-bold file:text-[#00685f] hover:file:bg-teal-100',
+                'accept': 'image/jpeg,image/png,image/webp',
+            }),
         }
+
+    def clean_foto(self):
+        foto = self.cleaned_data.get('foto')
+        if foto and foto.size > self.MAX_FOTO_BYTES:
+            raise forms.ValidationError('La foto no puede superar los 5 MB.')
+        return foto
 
 
 class CitaForm(forms.ModelForm):
@@ -155,6 +167,11 @@ class AdminUsuarioForm(forms.ModelForm):
         if username and User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("Ya existe una cuenta con este usuario.")
         return username
+
+    def clean_password(self):
+        password = self.cleaned_data['password']
+        validate_password(password, self.instance)
+        return password
 
     def clean(self):
         cleaned_data = super().clean()
@@ -289,6 +306,12 @@ class PerfilClienteForm(forms.ModelForm):
             perfil.save()
         return perfil
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip().lower()
+        if email and User.objects.filter(email__iexact=email).exclude(pk=self.user.pk).exists():
+            raise forms.ValidationError('Ya existe otra cuenta con este correo.')
+        return email
+
 
 class ConfiguracionNegocioForm(forms.ModelForm):
     class Meta:
@@ -357,6 +380,76 @@ class CalificacionForm(forms.ModelForm):
         }
 
 
+class SolicitarCodigoRecuperacionForm(forms.Form):
+    email = forms.EmailField(
+        label="Correo electronico",
+        widget=forms.EmailInput(attrs={
+            'class': 'w-full px-4 py-2.5 pr-12 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition text-sm',
+            'placeholder': 'correo@ejemplo.com',
+            'autocomplete': 'email',
+        }),
+    )
+
+
+class VerificarCodigoRecuperacionForm(forms.Form):
+    codigo = forms.CharField(
+        label="Codigo de verificacion",
+        min_length=6,
+        max_length=6,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 rounded-xl border border-slate-300 text-center font-mono text-xl tracking-[0.35em] focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition',
+            'placeholder': '000000',
+            'inputmode': 'numeric',
+            'autocomplete': 'one-time-code',
+            'maxlength': '6',
+        }),
+    )
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data['codigo'].strip()
+        if not codigo.isdigit() or len(codigo) != 6:
+            raise forms.ValidationError("Ingresa el codigo de seis digitos que recibiste por correo.")
+        return codigo
+
+
+class NuevaContrasenaRecuperacionForm(forms.Form):
+    nueva_contrasena = forms.CharField(
+        label="Nueva contrasena",
+        widget=forms.PasswordInput(attrs={
+            'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition text-sm',
+            'placeholder': 'Nueva contrasena',
+            'autocomplete': 'new-password',
+        }),
+    )
+    confirmar_contrasena = forms.CharField(
+        label="Confirmar contrasena",
+        widget=forms.PasswordInput(attrs={
+            'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition text-sm',
+            'placeholder': 'Confirma tu contrasena',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_nueva_contrasena(self):
+        password = self.cleaned_data['nueva_contrasena']
+        validate_password(password, self.user)
+        return password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if (
+            cleaned_data.get('nueva_contrasena')
+            and cleaned_data.get('confirmar_contrasena')
+            and cleaned_data['nueva_contrasena'] != cleaned_data['confirmar_contrasena']
+        ):
+            self.add_error('confirmar_contrasena', "Las contrasenas no coinciden.")
+        return cleaned_data
+
+
 class RegistroForm(forms.ModelForm):
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': '+593 99 999 9999'}))
     direccion = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]', 'placeholder': 'Direcci\u00f3n de referencia'}))
@@ -379,4 +472,35 @@ class RegistroForm(forms.ModelForm):
         confirm_password = cleaned_data.get("confirm_password")
         if password != confirm_password:
             raise forms.ValidationError("Las contrase\u00f1as no coinciden.")
+        if password:
+            validate_password(password, self.instance)
         return cleaned_data
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('Ya existe una cuenta con este correo.')
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError('Ya existe una cuenta con este usuario.')
+        return username
+
+
+class ContactoForm(forms.ModelForm):
+    class Meta:
+        model = MensajeContacto
+        fields = ['nombre', 'telefono', 'mensaje']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-[#00685f] outline-none', 'placeholder': 'Tu nombre completo', 'autocomplete': 'name'}),
+            'telefono': forms.TextInput(attrs={'class': 'w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-[#00685f] outline-none', 'placeholder': '+593 99 999 9999', 'autocomplete': 'tel'}),
+            'mensaje': forms.Textarea(attrs={'class': 'w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-[#00685f] outline-none resize-none', 'rows': 6, 'placeholder': 'Cuéntanos qué necesita tu mascota'}),
+        }
+
+    def clean_telefono(self):
+        telefono = ''.join(char for char in self.cleaned_data['telefono'] if char.isdigit() or char == '+')
+        if len(telefono.replace('+', '')) < 7:
+            raise forms.ValidationError('Ingresa un número de teléfono válido.')
+        return telefono

@@ -218,7 +218,7 @@
                                 </td>
                                 <td class="py-4 px-2">
                                     <span class="font-semibold text-slate-800">{{ cita.servicio.nombre }}</span>
-                                    <span class="block text-xs font-bold text-[#00685f]">{{ business.currency_symbol }}{{ cita.servicio.precio }}</span>
+                                    <span class="block text-xs font-bold text-[#00685f]">{{ business.currency_symbol }}{{ cita.precio_acordado|default:cita.servicio.precio }}</span>
                                 </td>
                                 <td class="py-4 px-2">
                                     <div class="font-semibold text-slate-800">{{ cita.fecha|date:"d M Y" }}</div>
@@ -244,7 +244,7 @@
                                             <option value="PAGADO" {% if cita.estado_pago == 'PAGADO' %}selected{% endif %}>Pagado</option>
                                         </select>
                                         <div class="flex gap-2">
-                                            <select name="método_pago" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
+                                            <select name="metodo_pago" aria-label="Método de pago" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold bg-white">
                                                 <option value="EFECTIVO" {% if cita.metodo_pago == 'EFECTIVO' %}selected{% endif %}>Efectivo</option>
                                                 <option value="TRANSFERENCIA" {% if cita.metodo_pago == 'TRANSFERENCIA' %}selected{% endif %}>Transferencia</option>
                                                 <option value="TARJETA" {% if cita.metodo_pago == 'TARJETA' %}selected{% endif %}>Tarjeta</option>
@@ -297,6 +297,21 @@
                     </tbody>
                 </table>
             </div>
+            {% if citas.has_other_pages %}
+                <nav class="mt-6 flex items-center justify-between gap-4 text-sm" aria-label="Paginación de citas">
+                    {% if citas.has_previous %}
+                        <a href="?estado={{ estado_filtro }}&amp;sucursal={{ sucursal_filtro }}&amp;page={{ citas.previous_page_number }}" class="font-semibold text-[#00685f] hover:underline">Anterior</a>
+                    {% else %}
+                        <span class="text-slate-300">Anterior</span>
+                    {% endif %}
+                    <span class="text-slate-500">Página {{ citas.number }} de {{ citas.paginator.num_pages }}</span>
+                    {% if citas.has_next %}
+                        <a href="?estado={{ estado_filtro }}&amp;sucursal={{ sucursal_filtro }}&amp;page={{ citas.next_page_number }}" class="font-semibold text-[#00685f] hover:underline">Siguiente</a>
+                    {% else %}
+                        <span class="text-slate-300">Siguiente</span>
+                    {% endif %}
+                </nav>
+            {% endif %}
         {% else %}
             <p class="text-center text-slate-500 py-8">No hay citas en este estado.</p>
         {% endif %}

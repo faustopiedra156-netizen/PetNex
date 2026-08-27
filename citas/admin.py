@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Negocio, Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
-    Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion,
+    Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, CodigoRecuperacionContrasena, MensajeContacto,
 )
 
 
@@ -67,7 +67,7 @@ class MascotaAdmin(admin.ModelAdmin):
 
 @admin.register(Cita)
 class CitaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'negocio', 'sucursal', 'mascota', 'servicio', 'propietario', 'fecha', 'hora', 'estado', 'etapa_seguimiento', 'progreso', 'estado_pago')
+    list_display = ('id', 'negocio', 'sucursal', 'mascota', 'servicio', 'precio_acordado', 'propietario', 'fecha', 'hora', 'estado', 'etapa_seguimiento', 'progreso', 'estado_pago')
     list_filter = ('negocio', 'sucursal', 'estado', 'etapa_seguimiento', 'estado_pago', 'fecha', 'servicio')
     search_fields = ('mascota__nombre', 'propietario__username', 'servicio__nombre', 'sucursal__nombre')
     date_hierarchy = 'fecha'
@@ -84,3 +84,19 @@ class CalificacionAdmin(admin.ModelAdmin):
     list_display = ('cita', 'cliente', 'puntuacion', 'creado_en')
     list_filter = ('puntuacion', 'creado_en')
     search_fields = ('cliente__username', 'cliente__first_name', 'cliente__last_name', 'comentario')
+
+
+@admin.register(CodigoRecuperacionContrasena)
+class CodigoRecuperacionContrasenaAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'expira_en', 'intentos', 'usado_en', 'creado_en')
+    list_filter = ('usado_en', 'creado_en')
+    search_fields = ('usuario__username', 'usuario__email')
+    readonly_fields = ('usuario', 'codigo_hash', 'expira_en', 'intentos', 'usado_en', 'creado_en')
+
+
+@admin.register(MensajeContacto)
+class MensajeContactoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'negocio', 'telefono', 'atendido', 'creado_en')
+    list_filter = ('atendido', 'negocio', 'creado_en')
+    search_fields = ('nombre', 'telefono', 'mensaje', 'negocio__nombre')
+    list_editable = ('atendido',)

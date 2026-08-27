@@ -1,22 +1,30 @@
 import re
 import datetime
-from decimal import Decimal, ROUND_HALF_UP
+import logging
+import secrets
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
+from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.db import connection, DatabaseError, OperationalError, ProgrammingError
+from django.db import connection, DatabaseError, IntegrityError, OperationalError, ProgrammingError, transaction
 from django.db.models import Sum, Count, Q, Avg
+from django.core.paginator import Paginator
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
-from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm
+from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio, CodigoRecuperacionContrasena
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm, SolicitarCodigoRecuperacionForm, VerificarCodigoRecuperacionForm, NuevaContrasenaRecuperacionForm, ContactoForm
 from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_publico, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
@@ -38,6 +46,28 @@ ESCALA_CALIFICACION = [
     {'valor': 5, 'texto': 'Excelente', 'detalle': 'Servicio completo y muy satisfactorio.'},
 ]
 DATAFAST_RESULT_OK_PATTERN = re.compile(r'^(000\.000\.|000\.100\.1|000\.[36])')
+logger = logging.getLogger(__name__)
+
+
+def client_ip(request):
+    if settings.TRUST_X_FORWARDED_FOR:
+        forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        if forwarded:
+            return forwarded.split(',', 1)[0].strip()
+    return request.META.get('REMOTE_ADDR', 'unknown')
+
+
+def rate_limit_exceeded(request, scope, limit, window_seconds):
+    """Small cache-based throttle; Redis makes it shared by every Gunicorn worker."""
+    cache_key = f'rate-limit:{scope}:{client_ip(request)}'
+    if cache.add(cache_key, 1, timeout=window_seconds):
+        return False
+    try:
+        attempts = cache.incr(cache_key)
+    except ValueError:
+        cache.set(cache_key, 1, timeout=window_seconds)
+        return False
+    return attempts > limit
 
 
 def parse_hora_config(valor, default):
@@ -129,6 +159,19 @@ def datafast_configurado():
     return bool(settings.DATAFAST_ENTITY_ID and settings.DATAFAST_AUTHORIZATION)
 
 
+def datafast_payload_valido(payload, expected_transaction, expected_amount):
+    provider_transaction = payload.get('merchantTransactionId') or payload.get('merchantTransactionID')
+    if provider_transaction and provider_transaction != expected_transaction:
+        return False
+    provider_amount = payload.get('amount')
+    if provider_amount is None:
+        return True
+    try:
+        return Decimal(str(provider_amount)).quantize(Decimal('0.01')) == expected_amount.quantize(Decimal('0.01'))
+    except (InvalidOperation, ValueError, TypeError):
+        return False
+
+
 def csrf_failure(request, reason=""):
     return render(request, 'csrf_error.html', {'reason': reason}, status=403)
 
@@ -147,7 +190,9 @@ def health_check_view(request):
         checks['database'] = 'ok'
     except DatabaseError as exc:
         checks['database'] = 'error'
-        checks['error'] = str(exc)
+        logger.error('Health check de base de datos fallido.', exc_info=True)
+        if settings.DEBUG:
+            checks['error'] = str(exc)
         status = 503
     return JsonResponse(checks, status=status)
 
@@ -166,6 +211,7 @@ def soporte_view(request):
 
 def home_view(request):
     negocio = negocio_para_request(request)
+    cache_key = f'negocio:home-metrics:{getattr(negocio, "pk", None) or "publico"}'
     try:
         servicios_destacados = Servicio.objects.filter(negocio=negocio, activo=True, destacado=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
@@ -173,13 +219,23 @@ def home_view(request):
         servicios_todos = Servicio.objects.filter(negocio=negocio, activo=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
         )[:settings.HOME_SERVICES_LIMIT]
-        mascotas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').values('mascota_id').distinct().count()
-        total_citas_operativas = Cita.objects.filter(negocio=negocio).exclude(estado='CANCELADA').count()
-        citas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').count()
-        tasa_atencion = round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0
-        resumen_resenas = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'), total=Count('id'))
-        promedio_resenas = resumen_resenas['promedio'] or 0
-        total_resenas = resumen_resenas['total']
+        metricas = cache.get(cache_key)
+        if metricas is None:
+            mascotas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').values('mascota_id').distinct().count()
+            total_citas_operativas = Cita.objects.filter(negocio=negocio).exclude(estado='CANCELADA').count()
+            citas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').count()
+            resumen_resenas = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'), total=Count('id'))
+            metricas = {
+                'mascotas_atendidas': mascotas_atendidas,
+                'tasa_atencion': round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0,
+                'promedio_resenas': round(resumen_resenas['promedio'] or 0, 1),
+                'total_resenas': resumen_resenas['total'],
+            }
+            cache.set(cache_key, metricas, timeout=120)
+        mascotas_atendidas = metricas['mascotas_atendidas']
+        tasa_atencion = metricas['tasa_atencion']
+        promedio_resenas = metricas['promedio_resenas']
+        total_resenas = metricas['total_resenas']
     except (OperationalError, ProgrammingError):
         servicios_destacados = []
         servicios_todos = []
@@ -223,15 +279,34 @@ def servicios_view(request):
 
 
 def contacto_view(request):
+    negocio = negocio_para_request(request)
     if request.method == 'POST':
-        messages.success(request, "Mensaje recibido. Te responderemos por WhatsApp o correo lo antes posible.")
-        return redirect('contacto')
-    return render(request, 'contacto.html')
+        if rate_limit_exceeded(request, 'contacto', limit=5, window_seconds=600):
+            messages.error(request, 'Has enviado varios mensajes. Espera unos minutos antes de intentar nuevamente.')
+            return redirect('contacto')
+        form = ContactoForm(request.POST)
+        if form.is_valid():
+            mensaje = form.save(commit=False)
+            mensaje.negocio = negocio
+            mensaje.save()
+            business = obtener_configuracion_negocio(negocio)
+            enviar_notificacion(
+                f'Nuevo mensaje de contacto: {mensaje.nombre}',
+                f'Teléfono: {mensaje.telefono}\n\n{mensaje.mensaje}',
+                [business['email']],
+            )
+            messages.success(request, 'Mensaje recibido. Te responderemos por WhatsApp o correo lo antes posible.')
+            return redirect('contacto')
+    else:
+        form = ContactoForm()
+    return render(request, 'contacto.html', {'form': form})
 
 
 def chatbot_view(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Metodo no permitido.'}, status=405)
+    if rate_limit_exceeded(request, 'chatbot', limit=30, window_seconds=60):
+        return JsonResponse({'respuesta': 'Has enviado muchas consultas. Espera un minuto para continuar.'}, status=429)
 
     negocio_obj = negocio_para_request(request)
     licencia = estado_licencia(negocio_obj)
@@ -391,7 +466,18 @@ def agendar_cita_view(request):
             cita = form.save(commit=False)
             cita.negocio = negocio
             cita.propietario = request.user
-            cita.save()
+            cita.precio_acordado = cita.servicio.precio
+            try:
+                with transaction.atomic():
+                    cita.save()
+            except IntegrityError:
+                form.add_error('hora', 'Ese horario acaba de ser ocupado. Elige otro disponible.')
+                messages.error(request, 'El horario seleccionado ya no está disponible.')
+                return render(request, 'agendar.html', {
+                    'form': form,
+                    'servicio_preseleccionado': servicio_preseleccionado,
+                    'mascotas': mascotas_usuario,
+                })
             negocio_datos = obtener_configuracion_negocio(negocio)
             enviar_notificacion(
                 f"Nueva cita en {negocio_datos['name']}",
@@ -423,7 +509,8 @@ def agendar_cita_view(request):
 
 @login_required
 def mis_citas_view(request):
-    citas = Cita.objects.select_related('sucursal', 'mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
+    citas_queryset = Cita.objects.select_related('sucursal', 'mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
+    citas = Paginator(citas_queryset, 20).get_page(request.GET.get('page'))
     context = {
         'citas': citas,
     }
@@ -466,6 +553,10 @@ def calificar_cita_view(request, cita_id):
 @require_POST
 def cancelar_cita_view(request, cita_id):
     cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
+    if request.POST.get('confirmacion', '').strip().upper() != 'CANCELAR':
+        messages.error(request, "Para cancelar la cita debes escribir CANCELAR.")
+        return redirect('mis_citas')
+
     if cita.estado in ESTADOS_EDITABLES_CLIENTE:
         cita.estado = 'CANCELADA'
         cita.save()
@@ -486,7 +577,12 @@ def pagar_cita_view(request, cita_id):
         messages.error(request, "Tu plan actual de PetNexo no incluye gestion de pagos.")
         return redirect('mis_citas')
 
-    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio, propietario=request.user)
+    cita = get_object_or_404(
+        Cita.objects.select_related('servicio', 'sucursal', 'mascota'),
+        id=cita_id,
+        negocio=negocio,
+        propietario=request.user,
+    )
     if cita.estado == 'CANCELADA':
         messages.error(request, "No puedes pagar una cita cancelada.")
         return redirect('mis_citas')
@@ -548,7 +644,7 @@ def crear_checkout_datafast(request, cita):
     url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
     user = request.user
     negocio = obtener_configuracion_negocio(cita.negocio)
-    amount = f"{float(cita.servicio.precio):.2f}"
+    amount = f"{(cita.precio_acordado or cita.servicio.precio):.2f}"
     data = {
         'entityId': settings.DATAFAST_ENTITY_ID,
         'amount': amount,
@@ -564,10 +660,11 @@ def crear_checkout_datafast(request, cita):
     }
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
-        response = requests.post(url, data=data, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
+        response = requests.post(url, data=data, headers=headers, timeout=(3.05, settings.DATAFAST_TIMEOUT_SECONDS))
         response.raise_for_status()
         return response.json().get('id')
     except requests.RequestException:
+        logger.warning('No se pudo crear el checkout Datafast de la cita %s.', cita.id, exc_info=True)
         return None
 
 
@@ -600,16 +697,22 @@ def crear_checkout_suscripcion_datafast(request, pago):
     }
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
-        response = requests.post(url, data=data, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
+        response = requests.post(url, data=data, headers=headers, timeout=(3.05, settings.DATAFAST_TIMEOUT_SECONDS))
         response.raise_for_status()
         return response.json().get('id')
     except requests.RequestException:
+        logger.warning('No se pudo crear el checkout Datafast de la suscripción %s.', pago.id, exc_info=True)
         return None
 
 
 @login_required
 def datafast_widget_view(request, cita_id):
-    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio_para_request(request), propietario=request.user)
+    cita = get_object_or_404(
+        Cita.objects.select_related('servicio', 'sucursal', 'mascota'),
+        id=cita_id,
+        negocio=negocio_para_request(request),
+        propietario=request.user,
+    )
     if not cita.datafast_checkout_id:
         messages.error(request, "Primero inicia el pago con tarjeta.")
         return redirect('pagar_cita', cita_id=cita.id)
@@ -622,21 +725,41 @@ def datafast_widget_view(request, cita_id):
 
 @login_required
 def datafast_result_view(request, cita_id):
-    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio_para_request(request), propietario=request.user)
+    cita = get_object_or_404(
+        Cita.objects.select_related('servicio', 'sucursal', 'mascota'),
+        id=cita_id,
+        negocio=negocio_para_request(request),
+        propietario=request.user,
+    )
     resource_path = request.GET.get('resourcePath', '')
-    if not resource_path:
+    if (
+        not cita.datafast_checkout_id
+        or not re.fullmatch(r'/v1/checkouts/[A-Za-z0-9._/-]+', resource_path)
+        or resource_path.rsplit('/', 1)[-1] != cita.datafast_checkout_id
+    ):
         messages.error(request, "No se recibió la respuesta del pago.")
+        return redirect('mis_citas')
+
+    if cita.estado_pago == 'PAGADO':
+        messages.info(request, "Esta cita ya se encuentra pagada.")
         return redirect('mis_citas')
 
     url = f"{settings.DATAFAST_BASE_URL}{resource_path}"
     params = {'entityId': settings.DATAFAST_ENTITY_ID}
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
+        response = requests.get(url, params=params, headers=headers, timeout=(3.05, settings.DATAFAST_TIMEOUT_SECONDS))
         response.raise_for_status()
         payload = response.json()
     except requests.RequestException:
         messages.error(request, "No se pudo verificar el pago con Datafast.")
+        return redirect('mis_citas')
+
+    expected_transaction = f"{obtener_configuracion_negocio(cita.negocio)['transaction_prefix']}-CITA-{cita.id}"
+    expected_amount = cita.precio_acordado or cita.servicio.precio
+    if not datafast_payload_valido(payload, expected_transaction, expected_amount):
+        logger.warning('Respuesta Datafast no coincide con la cita %s.', cita.id)
+        messages.error(request, 'La respuesta del pago no coincide con esta cita.')
         return redirect('mis_citas')
 
     result_code = payload.get('result', {}).get('code', '')
@@ -651,14 +774,26 @@ def datafast_result_view(request, cita_id):
         cita.estado_pago = 'PENDIENTE'
         messages.error(request, f"Pago no aprobado. Código Datafast: {result_code}")
 
-    cita.save()
+    with transaction.atomic():
+        cita_bloqueada = Cita.objects.select_for_update().get(pk=cita.pk)
+        if cita_bloqueada.estado_pago == 'PAGADO':
+            messages.info(request, 'Esta cita ya se encuentra pagada.')
+            return redirect('mis_citas')
+        cita_bloqueada.datafast_resource_path = cita.datafast_resource_path
+        cita_bloqueada.datafast_result_code = cita.datafast_result_code
+        cita_bloqueada.referencia_pago = cita.referencia_pago
+        cita_bloqueada.estado_pago = cita.estado_pago
+        cita_bloqueada.save(update_fields=[
+            'datafast_resource_path', 'datafast_result_code', 'referencia_pago',
+            'estado_pago',
+        ])
     return redirect('mis_citas')
 
 
 @login_required
 def mis_mascotas_view(request):
     mascotas = Mascota.objects.filter(propietario=request.user).only(
-        'nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto_url'
+        'nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto', 'foto_url'
     )
     context = {
         'mascotas': mascotas,
@@ -682,24 +817,10 @@ def perfil_cliente_view(request):
 
 
 @login_required
-@require_POST
-def eliminar_perfil_cliente_view(request):
-    if request.user.is_staff or request.user.is_superuser:
-        messages.error(request, "Las cuentas administrativas no se eliminan desde Mi Perfil.")
-        return redirect('perfil_cliente')
-
-    user = request.user
-    logout(request)
-    user.delete()
-    messages.info(request, "Tu cuenta fue eliminada correctamente.")
-    return redirect('home')
-
-
-@login_required
 def nueva_mascota_view(request):
     negocio = negocio_para_request(request)
     if request.method == 'POST':
-        form = MascotaForm(request.POST)
+        form = MascotaForm(request.POST, request.FILES)
         if form.is_valid():
             mascota = form.save(commit=False)
             mascota.propietario = request.user
@@ -724,7 +845,7 @@ def nueva_mascota_view(request):
 def editar_mascota_view(request, mascota_id):
     mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user)
     if request.method == 'POST':
-        form = MascotaForm(request.POST, instance=mascota)
+        form = MascotaForm(request.POST, request.FILES, instance=mascota)
         if form.is_valid():
             form.save()
             messages.success(request, f"Perfil de {mascota.nombre} actualizado.")
@@ -763,13 +884,14 @@ def gestion_admin_view(request):
     estado_filtro = request.GET.get('estado', 'TODOS')
     citas_base = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio)
     if estado_filtro and estado_filtro != 'TODOS':
-        citas = citas_base.filter(estado=estado_filtro).order_by('-fecha', '-hora')
+        citas_queryset = citas_base.filter(estado=estado_filtro).order_by('-fecha', '-hora')
     else:
-        citas = citas_base.order_by('-fecha', '-hora')
+        citas_queryset = citas_base.order_by('-fecha', '-hora')
 
     sucursal_filtro = request.GET.get('sucursal', 'TODAS')
     if sucursal_filtro and sucursal_filtro != 'TODAS' and sucursal_filtro.isdigit():
-        citas = citas.filter(sucursal_id=sucursal_filtro)
+        citas_queryset = citas_queryset.filter(sucursal_id=sucursal_filtro)
+    citas = Paginator(citas_queryset, 50).get_page(request.GET.get('page'))
 
     servicios = Servicio.objects.filter(negocio=negocio).only('nombre', 'categoria', 'precio', 'duracion_minutos', 'activo')
     sucursales = Sucursal.objects.filter(negocio=negocio, activa=True).only('nombre', 'ciudad')
@@ -784,8 +906,8 @@ def gestion_admin_view(request):
         hoy=Count('id', filter=Q(fecha=hoy)),
         pagos_pendientes=Count('id', filter=Q(estado_pago__in=['PENDIENTE', 'ABONADO'])),
     )
-    ingresos = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').aggregate(total=Sum('servicio__precio'))['total'] or 0
-    ingresos_mes = Cita.objects.filter(negocio=negocio, estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('servicio__precio'))['total'] or 0
+    ingresos = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').aggregate(total=Sum('precio_acordado'))['total'] or 0
+    ingresos_mes = Cita.objects.filter(negocio=negocio, estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('precio_acordado'))['total'] or 0
     promedio_calificacion = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
     citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio, fecha=hoy).order_by('sucursal__nombre', 'hora')[:settings.ADMIN_TODAY_APPOINTMENTS_LIMIT]
     licencia = estado_licencia(negocio)
@@ -1026,7 +1148,12 @@ def datafast_suscripcion_widget_view(request, pago_id):
     if redirect_response:
         return redirect_response
 
-    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user, suscripcion__negocio=negocio)
+    pago = get_object_or_404(
+        PagoSuscripcion.objects.select_related('plan', 'suscripcion__negocio'),
+        id=pago_id,
+        usuario=request.user,
+        suscripcion__negocio=negocio,
+    )
     if not pago.checkout_id:
         messages.error(request, "Primero inicia el pago de la suscripcion.")
         return redirect('suscripcion_negocio')
@@ -1047,47 +1174,72 @@ def datafast_suscripcion_result_view(request, pago_id):
     if redirect_response:
         return redirect_response
 
-    pago = get_object_or_404(PagoSuscripcion, id=pago_id, usuario=request.user, suscripcion__negocio=negocio)
+    pago = get_object_or_404(
+        PagoSuscripcion.objects.select_related('plan', 'suscripcion__negocio'),
+        id=pago_id,
+        usuario=request.user,
+        suscripcion__negocio=negocio,
+    )
     resource_path = request.GET.get('resourcePath', '')
-    if not resource_path:
+    if (
+        not pago.checkout_id
+        or not re.fullmatch(r'/v1/checkouts/[A-Za-z0-9._/-]+', resource_path)
+        or resource_path.rsplit('/', 1)[-1] != pago.checkout_id
+    ):
         messages.error(request, "No se recibio la respuesta del pago.")
+        return redirect('suscripcion_negocio')
+
+    if pago.estado == 'APROBADO':
+        messages.info(request, "Este pago ya fue aprobado.")
         return redirect('suscripcion_negocio')
 
     url = f"{settings.DATAFAST_BASE_URL}{resource_path}"
     params = {'entityId': settings.DATAFAST_ENTITY_ID}
     headers = {'Authorization': f"Bearer {settings.DATAFAST_AUTHORIZATION}"}
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=settings.DATAFAST_TIMEOUT_SECONDS)
+        response = requests.get(url, params=params, headers=headers, timeout=(3.05, settings.DATAFAST_TIMEOUT_SECONDS))
         response.raise_for_status()
         payload = response.json()
     except requests.RequestException:
         messages.error(request, "No se pudo verificar el pago con Datafast.")
         return redirect('suscripcion_negocio')
 
+    expected_transaction = f"{obtener_configuracion_negocio(negocio)['transaction_prefix']}-SUB-{pago.id}"
+    if not datafast_payload_valido(payload, expected_transaction, pago.monto):
+        logger.warning('Respuesta Datafast no coincide con el pago de suscripcion %s.', pago.id)
+        messages.error(request, 'La respuesta del pago no coincide con esta suscripcion.')
+        return redirect('suscripcion_negocio')
+
     result_code = payload.get('result', {}).get('code', '')
-    pago.datafast_resource_path = resource_path
-    pago.datafast_result_code = result_code
-    pago.referencia = payload.get('id', '')
-
-    if DATAFAST_RESULT_OK_PATTERN.match(result_code):
-        hoy = timezone.localdate()
-        dias = 365 if pago.ciclo_facturacion == 'ANUAL' else 30
-        suscripcion = pago.suscripcion or SuscripcionNegocio.actual(negocio=negocio)
-        if suscripcion:
-            suscripcion.plan = pago.plan
-            suscripcion.estado = 'ACTIVA'
-            suscripcion.fecha_inicio = hoy
-            suscripcion.fecha_vencimiento = hoy + datetime.timedelta(days=dias)
-            suscripcion.contacto_pago = pago.contacto_pago
-            suscripcion.notas = f"Pago Datafast aprobado: {pago.referencia}"
-            suscripcion.save()
-        pago.estado = 'APROBADO'
-        messages.success(request, "Pago aprobado. Tu plan PetNexo fue actualizado correctamente.")
-    else:
-        pago.estado = 'RECHAZADO'
-        messages.error(request, f"Pago no aprobado. Codigo Datafast: {result_code}")
-
-    pago.save()
+    with transaction.atomic():
+        pago_bloqueado = PagoSuscripcion.objects.select_for_update().select_related('plan', 'suscripcion').get(pk=pago.pk)
+        if pago_bloqueado.estado == 'APROBADO':
+            messages.info(request, 'Este pago ya fue aprobado.')
+            return redirect('suscripcion_negocio')
+        pago_bloqueado.datafast_resource_path = resource_path
+        pago_bloqueado.datafast_result_code = result_code
+        pago_bloqueado.referencia = payload.get('id', '')
+        if DATAFAST_RESULT_OK_PATTERN.match(result_code):
+            hoy = timezone.localdate()
+            dias = 365 if pago_bloqueado.ciclo_facturacion == 'ANUAL' else 30
+            suscripcion = pago_bloqueado.suscripcion or SuscripcionNegocio.actual(negocio=negocio)
+            if suscripcion:
+                suscripcion.plan = pago_bloqueado.plan
+                suscripcion.estado = 'ACTIVA'
+                suscripcion.fecha_inicio = hoy
+                suscripcion.fecha_vencimiento = hoy + datetime.timedelta(days=dias)
+                suscripcion.contacto_pago = pago_bloqueado.contacto_pago
+                suscripcion.notas = f"Pago Datafast aprobado: {pago_bloqueado.referencia}"
+                suscripcion.save()
+            pago_bloqueado.estado = 'APROBADO'
+            messages.success(request, "Pago aprobado. Tu plan PetNexo fue actualizado correctamente.")
+        else:
+            pago_bloqueado.estado = 'RECHAZADO'
+            messages.error(request, f"Pago no aprobado. Codigo Datafast: {result_code}")
+        pago_bloqueado.save(update_fields=[
+            'datafast_resource_path', 'datafast_result_code', 'referencia',
+            'estado', 'actualizado_en',
+        ])
     return redirect('suscripcion_negocio')
 
 
@@ -1274,6 +1426,9 @@ def registro_view(request):
         return redirect('home')
 
     if request.method == 'POST':
+        if rate_limit_exceeded(request, 'registro', limit=5, window_seconds=900):
+            messages.error(request, 'Has realizado varios intentos de registro. Espera unos minutos e intentalo nuevamente.')
+            return redirect('registro')
         form = RegistroForm(request.POST)
         if form.is_valid():
             negocio = negocio_para_request(request)
@@ -1300,6 +1455,9 @@ def login_usuario_view(request):
         return redirect('home')
 
     if request.method == 'POST':
+        if rate_limit_exceeded(request, 'login', limit=10, window_seconds=600):
+            messages.error(request, 'Demasiados intentos de inicio de sesión. Espera unos minutos e inténtalo nuevamente.')
+            return redirect('login')
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
@@ -1309,6 +1467,12 @@ def login_usuario_view(request):
                 login(request, user)
                 messages.success(request, f"Hola de nuevo, {user.first_name or user.username}.")
                 next_page = request.GET.get('next', 'home')
+                if not url_has_allowed_host_and_scheme(
+                    url=next_page,
+                    allowed_hosts={request.get_host()},
+                    require_https=request.is_secure(),
+                ):
+                    next_page = 'home'
                 if next_page == 'home' and es_staff(user):
                     return redirect('gestion_admin')
                 return redirect(next_page)
@@ -1318,6 +1482,168 @@ def login_usuario_view(request):
         form = AuthenticationForm()
 
     return render(request, 'login.html', {'form': form})
+
+
+def solicitar_codigo_recuperacion_view(request):
+    if request.user.is_authenticated:
+        return redirect('home')
+
+    if request.method == 'POST':
+        if rate_limit_exceeded(request, 'password-reset', limit=5, window_seconds=900):
+            messages.error(request, 'Has solicitado varios códigos. Espera unos minutos antes de intentarlo nuevamente.')
+            return redirect('password_reset')
+        form = SolicitarCodigoRecuperacionForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            users = list(User.objects.filter(email__iexact=email, is_active=True).order_by('id')[:2])
+            user = users[0] if len(users) == 1 else None
+            ahora = timezone.now()
+
+            if user:
+                ultimo = (
+                    CodigoRecuperacionContrasena.objects.filter(
+                        usuario=user,
+                        usado_en__isnull=True,
+                        expira_en__gt=ahora,
+                    )
+                    .order_by('-creado_en')
+                    .first()
+                )
+                espera = datetime.timedelta(seconds=settings.PASSWORD_RESET_CODE_RESEND_SECONDS)
+                codigo = None
+                if ultimo and ultimo.creado_en >= ahora - espera:
+                    registro = ultimo
+                else:
+                    CodigoRecuperacionContrasena.objects.filter(
+                        usuario=user,
+                        usado_en__isnull=True,
+                    ).update(usado_en=ahora)
+                    codigo = f"{secrets.randbelow(1_000_000):06d}"
+                    registro = CodigoRecuperacionContrasena.objects.create(
+                        usuario=user,
+                        codigo_hash=make_password(codigo),
+                        expira_en=ahora + datetime.timedelta(minutes=settings.PASSWORD_RESET_CODE_TTL_MINUTES),
+                    )
+
+                request.session['password_reset_code_id'] = registro.id
+                request.session['password_reset_user_id'] = user.id
+                request.session.pop('password_reset_verified_until', None)
+
+                if codigo:
+                    try:
+                        send_mail(
+                            subject=f"Codigo de recuperacion de {settings.APP_NAME}",
+                            message=render_to_string(
+                                'password_reset_email.html',
+                                {
+                                    'codigo': codigo,
+                                    'minutos': settings.PASSWORD_RESET_CODE_TTL_MINUTES,
+                                    'site_name': settings.APP_NAME,
+                                },
+                            ),
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=[user.email],
+                            fail_silently=False,
+                        )
+                    except Exception:
+                        logger.exception("No se pudo enviar el codigo de recuperacion.")
+
+            # Do not reveal whether a specific email has an account.
+            return redirect('password_reset_verify')
+    else:
+        form = SolicitarCodigoRecuperacionForm()
+
+    return render(request, 'password_reset.html', {'form': form})
+
+
+def verificar_codigo_recuperacion_view(request):
+    codigo_id = request.session.get('password_reset_code_id')
+    user_id = request.session.get('password_reset_user_id')
+    registro = None
+    if codigo_id and user_id:
+        registro = CodigoRecuperacionContrasena.objects.filter(
+            id=codigo_id,
+            usuario_id=user_id,
+        ).first()
+
+    if request.method == 'POST':
+        form = VerificarCodigoRecuperacionForm(request.POST)
+        if form.is_valid():
+            if not registro or not registro.esta_vigente:
+                messages.error(request, "El codigo expiro o ya fue utilizado. Solicita uno nuevo.")
+                return redirect('password_reset')
+
+            if registro.intentos >= settings.PASSWORD_RESET_CODE_MAX_ATTEMPTS:
+                registro.usado_en = timezone.now()
+                registro.save(update_fields=['usado_en'])
+                messages.error(request, "Superaste el numero de intentos. Solicita un codigo nuevo.")
+                return redirect('password_reset')
+
+            if not check_password(form.cleaned_data['codigo'], registro.codigo_hash):
+                registro.intentos += 1
+                registro.save(update_fields=['intentos'])
+                restantes = settings.PASSWORD_RESET_CODE_MAX_ATTEMPTS - registro.intentos
+                if restantes <= 0:
+                    registro.usado_en = timezone.now()
+                    registro.save(update_fields=['intentos', 'usado_en'])
+                    messages.error(request, "Superaste el numero de intentos. Solicita un codigo nuevo.")
+                    return redirect('password_reset')
+                form.add_error('codigo', f"Codigo incorrecto. Te quedan {restantes} intentos.")
+            else:
+                registro.usado_en = timezone.now()
+                registro.save(update_fields=['usado_en'])
+                request.session.cycle_key()
+                request.session['password_reset_verified_user_id'] = user_id
+                request.session['password_reset_verified_until'] = (
+                    timezone.now().timestamp() + settings.PASSWORD_RESET_CODE_TTL_MINUTES * 60
+                )
+                request.session.pop('password_reset_code_id', None)
+                request.session.pop('password_reset_user_id', None)
+                return redirect('password_reset_confirm')
+    else:
+        form = VerificarCodigoRecuperacionForm()
+
+    return render(
+        request,
+        'password_reset_verify.html',
+        {
+            'form': form,
+            'codigo_activo': bool(registro and registro.esta_vigente),
+            'minutos': settings.PASSWORD_RESET_CODE_TTL_MINUTES,
+        },
+    )
+
+
+def establecer_nueva_contrasena_view(request):
+    user_id = request.session.get('password_reset_verified_user_id')
+    try:
+        verificado_hasta = float(request.session.get('password_reset_verified_until', 0))
+    except (TypeError, ValueError):
+        verificado_hasta = 0
+    if not user_id or verificado_hasta < timezone.now().timestamp():
+        request.session.pop('password_reset_verified_user_id', None)
+        request.session.pop('password_reset_verified_until', None)
+        messages.error(request, "Primero verifica el codigo enviado a tu correo.")
+        return redirect('password_reset')
+
+    user = get_object_or_404(User, id=user_id, is_active=True)
+    if request.method == 'POST':
+        form = NuevaContrasenaRecuperacionForm(user, request.POST)
+        if form.is_valid():
+            user.set_password(form.cleaned_data['nueva_contrasena'])
+            user.save(update_fields=['password'])
+            request.session.pop('password_reset_verified_user_id', None)
+            request.session.pop('password_reset_verified_until', None)
+            messages.success(request, "Tu contrasena fue actualizada. Ya puedes iniciar sesion.")
+            return redirect('password_reset_complete')
+    else:
+        form = NuevaContrasenaRecuperacionForm(user)
+
+    return render(request, 'password_reset_confirm.html', {'form': form})
+
+
+def recuperacion_completada_view(request):
+    return render(request, 'password_reset_complete.html')
 
 
 def logout_usuario_view(request):

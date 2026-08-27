@@ -47,7 +47,7 @@
                 </div>
             </div>
 
-            <form method="post" class="p-6 sm:p-8 space-y-6">
+            <form method="post" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-6">
                 {% csrf_token %}
 
                 <div>
@@ -84,8 +84,10 @@
                 </div>
 
                 <div>
-                    <label class="block font-headline font-bold text-sm text-slate-800 mb-2">URL de foto</label>
-                    {{ form.foto_url }}
+                    <label for="id_foto" class="block font-headline font-bold text-sm text-slate-800 mb-2">Foto de la mascota <span class="font-normal text-slate-500">(opcional)</span></label>
+                    {{ form.foto }}
+                    <p class="text-xs text-slate-500 mt-2">Selecciona una imagen JPG, PNG o WEBP de hasta 5 MB desde tu dispositivo.</p>
+                    {% if form.foto.errors %}<p class="text-sm text-red-600 mt-2">{{ form.foto.errors|striptags }}</p>{% endif %}
                 </div>
 
                 <div class="pt-2 flex flex-col sm:flex-row gap-3">

@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: petnexo-web
+    runtime: python
+    plan: starter
+    region: ohio
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn petcare_loja.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --max-requests 1000 --max-requests-jitter 100
+    healthCheckPath: /health/
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: petnexo-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: petnexo-cache
+          property: connectionString
+      - key: DEBUG
+        value: "False"
+      - key: USE_SQLITE_LOCAL
+        value: "False"
+      - key: TRUST_X_FORWARDED_FOR
+        value: "True"
+      - key: SECRET_KEY
+        generateValue: true
+
+  - type: keyvalue
+    name: petnexo-cache
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+databases:
+  - name: petnexo-db
+    plan: basic-1gb
+    region: ohio
+    postgresMajorVersion: "17"
+    connectionPool: pgbouncer

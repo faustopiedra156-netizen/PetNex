@@ -57,7 +57,7 @@
                         <div class="hero-slide absolute inset-0 z-0 {% if forloop.first %}opacity-100{% else %}opacity-0{% endif %} transition-opacity duration-700"
                              data-title="{{ slide.title }}"
                              data-text="{{ slide.text }}">
-                            <img src="{{ slide.image }}" alt="{{ business.category }} - {{ slide.alt }}" class="w-full h-96 lg:h-[480px] object-cover">
+                            <img src="{{ slide.image }}" alt="{{ business.category }} - {{ slide.alt }}" class="w-full h-96 lg:h-[480px] object-cover" {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
                         </div>
                     {% endfor %}
 

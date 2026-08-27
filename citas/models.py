@@ -83,7 +83,7 @@ class SuscripcionNegocio(models.Model):
         queryset = cls.objects.select_related('plan', 'negocio')
         if negocio:
             queryset = queryset.filter(negocio=negocio)
-        return queryset.order_by('id').first()
+        return queryset.order_by('-fecha_vencimiento', '-actualizado_en').first()
 
     @property
     def dias_restantes(self):
@@ -249,6 +249,9 @@ class Servicio(models.Model):
         verbose_name = "Servicio"
         verbose_name_plural = "Servicios"
         ordering = ['-destacado', 'nombre']
+        indexes = [
+            models.Index(fields=['negocio', 'activo', 'categoria'], name='servicio_catalogo_idx'),
+        ]
 
     def __str__(self):
         return f"{self.nombre} (${self.precio})"
@@ -294,6 +297,9 @@ class Sucursal(models.Model):
         verbose_name = "Sucursal"
         verbose_name_plural = "Sucursales"
         ordering = ['nombre']
+        indexes = [
+            models.Index(fields=['negocio', 'activa'], name='sucursal_negocio_activa_idx'),
+        ]
 
     def __str__(self):
         return f"{self.nombre} - {self.ciudad}"
@@ -332,6 +338,13 @@ class Mascota(models.Model):
     edad = models.PositiveIntegerField(default=2, verbose_name="Edad (a\u00f1os)")
     peso_kg = models.DecimalField(max_digits=4, decimal_places=1, default=5.0, verbose_name="Peso (kg)")
     notas_medicas = models.TextField(blank=True, null=True, verbose_name="Alergias o Cuidados Especiales")
+    foto = models.ImageField(
+        upload_to='mascotas/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name="Foto de la mascota",
+    )
+    # Se conserva para no romper registros antiguos creados con una URL.
     foto_url = models.URLField(blank=True, null=True, verbose_name="URL de Imagen / Foto")
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
@@ -403,6 +416,13 @@ class Cita(models.Model):
     sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name='citas', verbose_name="Sucursal")
     mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='citas', verbose_name="Mascota")
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE, related_name='citas', verbose_name="Servicio Requerido")
+    precio_acordado = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Precio acordado",
+    )
     fecha = models.DateField(verbose_name="Fecha de Atenci\u00f3n")
     hora = models.TimeField(verbose_name="Hora de Atenci\u00f3n")
     estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE', verbose_name="Estado de la Cita")
@@ -440,6 +460,12 @@ class Cita(models.Model):
                 name='cita_horario_activo_unico_por_sucursal',
             ),
         ]
+        indexes = [
+            models.Index(fields=['negocio', 'fecha'], name='cita_negocio_fecha_idx'),
+            models.Index(fields=['negocio', 'estado', 'fecha'], name='cita_estado_fecha_idx'),
+            models.Index(fields=['propietario', 'fecha'], name='cita_cliente_fecha_idx'),
+            models.Index(fields=['negocio', 'creado_en'], name='cita_negocio_creada_idx'),
+        ]
 
     def __str__(self):
         return f"Cita #{self.id} - {self.mascota.nombre} ({self.servicio.nombre}) - {self.fecha} {self.hora}"
@@ -468,3 +494,57 @@ class Calificacion(models.Model):
 
     def __str__(self):
         return f"{self.puntuacion}/5 - Cita #{self.cita_id}"
+
+
+class CodigoRecuperacionContrasena(models.Model):
+    """One-time reset code persisted as a password hash."""
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='codigos_recuperacion_contrasena',
+        verbose_name="Usuario",
+    )
+    codigo_hash = models.CharField(max_length=128, verbose_name="Codigo cifrado")
+    expira_en = models.DateTimeField(verbose_name="Expira en")
+    intentos = models.PositiveSmallIntegerField(default=0, verbose_name="Intentos realizados")
+    usado_en = models.DateTimeField(null=True, blank=True, verbose_name="Usado en")
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
+
+    class Meta:
+        verbose_name = "Codigo de recuperacion de contrasena"
+        verbose_name_plural = "Codigos de recuperacion de contrasena"
+        ordering = ['-creado_en']
+        indexes = [
+            models.Index(
+                fields=['usuario', 'expira_en'],
+                name='citas_codig_usuario_9be51c_idx',
+            )
+        ]
+
+    def __str__(self):
+        return f"Codigo de recuperacion para {self.usuario}"
+
+    @property
+    def esta_vigente(self):
+        return self.usado_en is None and self.expira_en > timezone.now()
+
+
+class MensajeContacto(models.Model):
+    negocio = models.ForeignKey(Negocio, on_delete=models.CASCADE, related_name='mensajes_contacto')
+    nombre = models.CharField(max_length=120)
+    telefono = models.CharField(max_length=30)
+    mensaje = models.TextField(max_length=1500)
+    atendido = models.BooleanField(default=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Mensaje de contacto'
+        verbose_name_plural = 'Mensajes de contacto'
+        ordering = ['atendido', '-creado_en']
+        indexes = [
+            models.Index(fields=['negocio', 'atendido', 'creado_en'], name='mensaje_contacto_estado_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.nombre} - {self.negocio.nombre}'

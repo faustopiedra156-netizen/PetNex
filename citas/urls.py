@@ -1,5 +1,4 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -24,7 +23,6 @@ urlpatterns = [
     path('mascotas/editar/<int:mascota_id>/', views.editar_mascota_view, name='editar_mascota'),
     path('mascotas/eliminar/<int:mascota_id>/', views.eliminar_mascota_view, name='eliminar_mascota'),
     path('perfil/', views.perfil_cliente_view, name='perfil_cliente'),
-    path('perfil/eliminar/', views.eliminar_perfil_cliente_view, name='eliminar_perfil_cliente'),
     
     # Admin / Staff
     path('gestion/', views.gestion_admin_view, name='gestion_admin'),
@@ -48,32 +46,8 @@ urlpatterns = [
     path('registro/', views.registro_view, name='registro'),
     path('login/', views.login_usuario_view, name='login'),
     path('logout/', views.logout_usuario_view, name='logout'),
-    path(
-        'recuperar-contrasena/',
-        auth_views.PasswordResetView.as_view(
-            template_name='password_reset.html',
-            email_template_name='password_reset_email.html',
-            subject_template_name='password_reset_subject.txt',
-            success_url='/recuperar-contrasena/enviado/',
-        ),
-        name='password_reset',
-    ),
-    path(
-        'recuperar-contrasena/enviado/',
-        auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'),
-        name='password_reset_done',
-    ),
-    path(
-        'recuperar-contrasena/<uidb64>/<token>/',
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name='password_reset_confirm.html',
-            success_url='/recuperar-contrasena/completado/',
-        ),
-        name='password_reset_confirm',
-    ),
-    path(
-        'recuperar-contrasena/completado/',
-        auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'),
-        name='password_reset_complete',
-    ),
+    path('recuperar-contrasena/', views.solicitar_codigo_recuperacion_view, name='password_reset'),
+    path('recuperar-contrasena/verificar/', views.verificar_codigo_recuperacion_view, name='password_reset_verify'),
+    path('recuperar-contrasena/nueva-contrasena/', views.establecer_nueva_contrasena_view, name='password_reset_confirm'),
+    path('recuperar-contrasena/completado/', views.recuperacion_completada_view, name='password_reset_complete'),
 ]

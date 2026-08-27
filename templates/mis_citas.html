@@ -30,7 +30,7 @@
                             </div>
                             <p class="text-slate-700 font-semibold text-sm mb-2 flex items-center gap-1">
                                 <span class="material-symbols-outlined text-base text-[#00685f]">content_cut</span>
-                                {{ cita.servicio.nombre }} - {{ business.currency_symbol }}{{ cita.servicio.precio }}
+                                {{ cita.servicio.nombre }} - {{ business.currency_symbol }}{{ cita.precio_acordado|default:cita.servicio.precio }}
                             </p>
                             <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
                                 <span class="flex items-center gap-1">
@@ -132,8 +132,9 @@
                                     Pagar
                                 </a>
                             {% endif %}
-                            <form method="post" action="{% url 'cancelar_cita' cita.id %}" onsubmit="return confirm('Seguro que deseas cancelar esta cita?')">
+                            <form method="post" action="{% url 'cancelar_cita' cita.id %}" class="flex flex-col gap-2" onsubmit="return confirm('Seguro que deseas cancelar esta cita?')">
                                 {% csrf_token %}
+                                <input name="confirmacion" class="w-full px-3 py-1.5 rounded-xl border border-red-200 text-xs focus:ring-2 focus:ring-red-200 outline-none" placeholder="Escribe CANCELAR">
                                 <button type="submit" class="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition">
                                     Cancelar Cita
                                 </button>
@@ -148,6 +149,21 @@
                 </div>
             {% endfor %}
         </div>
+        {% if citas.has_other_pages %}
+            <nav class="mt-6 flex items-center justify-between gap-4 text-sm" aria-label="Paginación de citas">
+                {% if citas.has_previous %}
+                    <a href="?page={{ citas.previous_page_number }}" class="font-semibold text-[#00685f] hover:underline">Anterior</a>
+                {% else %}
+                    <span class="text-slate-300">Anterior</span>
+                {% endif %}
+                <span class="text-slate-500">Página {{ citas.number }} de {{ citas.paginator.num_pages }}</span>
+                {% if citas.has_next %}
+                    <a href="?page={{ citas.next_page_number }}" class="font-semibold text-[#00685f] hover:underline">Siguiente</a>
+                {% else %}
+                    <span class="text-slate-300">Siguiente</span>
+                {% endif %}
+            </nav>
+        {% endif %}
     {% else %}
         <div class="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
             <div class="w-16 h-16 rounded-full bg-teal-50 text-[#00685f] mx-auto flex items-center justify-center mb-4">

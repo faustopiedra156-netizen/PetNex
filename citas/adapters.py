@@ -4,11 +4,32 @@ from django.contrib.auth.models import User
 from allauth.account.utils import perform_login
 from allauth.core.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.socialaccount.models import SocialApp
 
 from .models import PerfilCliente, Negocio
 
 
 class PetNexoSocialAccountAdapter(DefaultSocialAccountAdapter):
+    def get_app(self, request, provider, client_id=None):
+        """Use the environment-backed Google app as the single OAuth source.
+
+        Older installations may still have one or more Google ``SocialApp``
+        records created through Django admin.  django-allauth combines those
+        records with the app configured in settings, which raises
+        ``MultipleObjectsReturned``.  PetNexo stores the deployment-specific
+        OAuth credentials in environment variables, so that configuration is
+        intentionally preferred whenever it is complete.
+        """
+        if provider == 'google' and settings.GOOGLE_LOGIN_CONFIGURED:
+            return SocialApp(
+                provider='google',
+                name='Google OAuth (environment)',
+                client_id=settings.GOOGLE_CLIENT_ID,
+                secret=settings.GOOGLE_CLIENT_SECRET,
+                key='',
+            )
+        return super().get_app(request, provider, client_id=client_id)
+
     def save_user(self, request, sociallogin, form=None):
         user = super().save_user(request, sociallogin, form=form)
         PerfilCliente.objects.get_or_create(
@@ -25,9 +46,10 @@ class PetNexoSocialAccountAdapter(DefaultSocialAccountAdapter):
         if not verified_email:
             return
 
-        user = User.objects.filter(email__iexact=verified_email).first()
-        if not user:
+        users = User.objects.filter(email__iexact=verified_email)
+        if users.count() != 1:
             return
+        user = users.first()
 
         sociallogin.connect(request, user)
         PerfilCliente.objects.get_or_create(
