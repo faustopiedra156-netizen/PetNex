@@ -1,5 +1,5 @@
 # Dependencias directas de PetNexo
-resend>=2.0.0,<3.0.0
+brevo-python==5.0.2
 Django==6.1
 Pillow==12.3.0
 dj-database-url==3.1.2

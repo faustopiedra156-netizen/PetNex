@@ -11,6 +11,7 @@ from django.urls import reverse
 
 from .email_backend import BrevoEmailBackend
 from .models import Cita, CodigoRecuperacionContrasena, Mascota, Negocio, Servicio, Sucursal
+from .services import enviar_notificacion
 
 
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
@@ -91,6 +92,17 @@ class BrevoEmailBackendTests(SimpleTestCase):
         self.assertEqual(backend.send_messages([message]), 1)
         brevo_client.assert_called_once_with(api_key='test-key', timeout=10.0)
         brevo_client.return_value.transactional_emails.send_transac_email.assert_called_once()
+
+    @patch('citas.services.send_mail', side_effect=AttributeError('configuracion antigua'))
+    def test_falla_del_correo_no_interrumpe_el_flujo(self, send_mail):
+        self.assertFalse(
+            enviar_notificacion(
+                'Nueva cita',
+                'Mensaje de prueba',
+                ['cliente@example.com'],
+            )
+        )
+        send_mail.assert_called_once()
 
 
 @override_settings(SIMULATE_PAYMENTS=True)

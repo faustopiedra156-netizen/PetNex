@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
@@ -5,6 +7,8 @@ from django.db import OperationalError, ProgrammingError
 from django.utils import timezone
 
 from .models import ConfiguracionNegocio, Negocio, SuscripcionNegocio
+
+logger = logging.getLogger(__name__)
 
 
 def _negocio_cache_id(negocio):
@@ -49,13 +53,19 @@ def enviar_notificacion(asunto, mensaje, destinatarios):
     destinatarios = [correo for correo in destinatarios if correo]
     if not destinatarios:
         return False
-    return send_mail(
-        asunto,
-        mensaje,
-        settings.DEFAULT_FROM_EMAIL,
-        destinatarios,
-        fail_silently=True,
-    )
+    try:
+        return send_mail(
+            asunto,
+            mensaje,
+            settings.DEFAULT_FROM_EMAIL,
+            destinatarios,
+            fail_silently=True,
+        )
+    except Exception:
+        # Email is a side effect of the appointment workflow. A provider
+        # outage or stale environment variable must not undo a saved booking.
+        logger.exception('No se pudo enviar la notificacion de PetNexo.')
+        return False
 
 
 def obtener_suscripcion_negocio(negocio=None):
