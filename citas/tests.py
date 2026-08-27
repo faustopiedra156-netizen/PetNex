@@ -102,8 +102,9 @@ class BrevoEmailBackendTests(SimpleTestCase):
         brevo_client.assert_called_once_with(api_key='test-key', timeout=10.0)
         brevo_client.return_value.transactional_emails.send_transac_email.assert_called_once()
 
+    @patch('citas.services.logger.exception')
     @patch('citas.services.send_mail', side_effect=AttributeError('configuracion antigua'))
-    def test_falla_del_correo_no_interrumpe_el_flujo(self, send_mail):
+    def test_falla_del_correo_no_interrumpe_el_flujo(self, send_mail, log_exception):
         self.assertFalse(
             enviar_notificacion(
                 'Nueva cita',
@@ -112,6 +113,7 @@ class BrevoEmailBackendTests(SimpleTestCase):
             )
         )
         send_mail.assert_called_once()
+        log_exception.assert_called_once()
 
 
 @override_settings(SIMULATE_PAYMENTS=True)
@@ -218,10 +220,11 @@ class PagoSimuladoTests(TestCase):
         self.client.logout()
         self.client.login(username='otro_cliente', password='clave-segura-para-pruebas')
 
-        response = self.client.post(
-            reverse('simular_pago_cita', args=[self.cita.id]),
-            {'accion': 'aprobar'},
-        )
+        with patch('django.core.handlers.exception.log_response'):
+            response = self.client.post(
+                reverse('simular_pago_cita', args=[self.cita.id]),
+                {'accion': 'aprobar'},
+            )
 
         self.assertEqual(response.status_code, 404)
         self.cita.refresh_from_db()
@@ -245,3 +248,59 @@ class PagoSimuladoTests(TestCase):
         self.cita.refresh_from_db()
         self.assertEqual(self.cita.datafast_checkout_id, 'checkout-de-prueba')
         self.assertEqual(self.cita.estado_pago, 'PENDIENTE')
+
+
+class RoleAccessTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.owner = user_model.objects.create_superuser(
+            username='petnexo_owner',
+            email='owner@petnexo.test',
+            password='clave-segura-owner',
+        )
+        self.local_admin = user_model.objects.create_user(
+            username='admin_local',
+            email='admin@local.test',
+            password='clave-segura-local',
+            is_staff=True,
+        )
+        self.negocio = Negocio.objects.create(
+            nombre='Local del administrador',
+            propietario=self.local_admin,
+        )
+
+    def test_dueno_petnexo_solo_ve_la_administracion_del_sistema(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse('gestion_admin'))
+
+        self.assertRedirects(response, reverse('cuentas_admin'))
+        response = self.client.get(reverse('cuentas_admin'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Administración del sistema')
+        self.assertNotContains(response, 'Mi Perfil')
+        self.assertNotContains(response, 'Mis Citas')
+        self.assertNotContains(response, 'Mis Mascotas')
+
+        response = self.client.get(reverse('mis_citas'))
+        self.assertRedirects(response, reverse('cuentas_admin'))
+
+    def test_dueno_no_puede_editar_configuracion_operativa(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse('configuracion_negocio'))
+
+        self.assertRedirects(response, reverse('cuentas_admin'))
+
+    def test_admin_local_puede_operar_su_panel_pero_no_cuentas_del_sistema(self):
+        self.client.force_login(self.local_admin)
+
+        response = self.client.get(reverse('gestion_admin'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Administrador del local')
+
+        response = self.client.get(reverse('cuentas_admin'))
+        self.assertRedirects(response, reverse('gestion_admin'))
+
+        response = self.client.get(reverse('mis_citas'))
+        self.assertRedirects(response, reverse('gestion_admin'))

@@ -24,10 +24,6 @@
                 </p>
 
                 <div class="pt-2 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{% url 'agendar_cita' %}" class="px-8 py-4 rounded-2xl bg-white text-[#00685f] font-headline font-bold text-base hover:bg-teal-50 shadow-xl shadow-teal-950/20 transition flex items-center justify-center gap-2 group">
-                        <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition">calendar_month</span>
-                        <span>{{ business.primary_cta }}</span>
-                    </a>
                     <a href="{% url 'servicios' %}" class="px-8 py-4 rounded-2xl bg-teal-800/60 border border-teal-400/30 text-white font-headline font-semibold text-base hover:bg-teal-800 transition flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-2xl">format_list_bulleted</span>
                         <span>Ver cat&aacute;logo</span>
@@ -112,8 +108,8 @@
                         <span class="material-symbols-outlined text-base text-slate-400">schedule</span>
                         {{ servicio.duracion_minutos }} min aprox.
                     </span>
-                    <a href="{% url 'agendar_cita' %}?servicio_id={{ servicio.id }}" class="px-4 py-2 rounded-xl bg-teal-50 hover:bg-[#00685f] text-[#00685f] hover:text-white font-semibold text-xs transition flex items-center gap-1">
-                        <span>Agendar</span>
+                    <a href="{% url 'servicios' %}" class="px-4 py-2 rounded-xl bg-teal-50 hover:bg-[#00685f] text-[#00685f] hover:text-white font-semibold text-xs transition flex items-center gap-1">
+                        <span>Ver servicio</span>
                         <span class="material-symbols-outlined text-sm">arrow_forward</span>
                     </a>
                 </div>
@@ -157,12 +153,9 @@
             <p class="text-teal-100 text-base mb-6">
                 Reg&iacute;strate gratis, agrega la ficha de tus mascotas y programa su sesi&oacute;n en el horario que m&aacute;s te convenga.
             </p>
-            <div class="flex flex-wrap gap-4">
-                <a href="{% url 'agendar_cita' %}" class="px-6 py-3.5 rounded-xl bg-white text-[#00685f] font-headline font-bold text-sm hover:bg-teal-50 transition shadow-md">
-                    Agendar cita
-                </a>
-                <a href="{% url 'registro' %}" class="px-6 py-3.5 rounded-xl border border-teal-300 text-white font-semibold text-sm hover:bg-white/10 transition">
-                    Crear cuenta
+            <div>
+                <a href="{% url 'registro' %}" class="inline-flex px-6 py-3.5 rounded-xl border border-teal-300 text-white font-semibold text-sm hover:bg-white/10 transition">
+                    Crear cuenta para comenzar
                 </a>
             </div>
         </div>

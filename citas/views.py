@@ -90,16 +90,16 @@ def generar_horarios_disponibilidad():
     return horarios
 
 
-def es_staff(user):
-    return user.is_staff or user.is_superuser
-
-
 def es_dueno_petnexo(user):
     return user.is_authenticated and user.is_superuser
 
 
 def es_admin_local(user):
     return user.is_authenticated and user.is_staff and not user.is_superuser
+
+
+def es_cliente_final(user):
+    return user.is_authenticated and not user.is_staff and not user.is_superuser
 
 
 def es_responsable_suscripcion(user):
@@ -123,24 +123,25 @@ def negocio_admin_o_redirect(request):
     negocio = obtener_negocio_usuario(request.user)
     if negocio:
         return negocio, None
-    if request.user.is_superuser:
-        negocio = obtener_negocio_publico()
-        return negocio, None
     messages.error(request, "Tu cuenta administrativa aun no tiene un negocio asignado.")
     return None, redirect('home')
-
-
-def redirect_si_no_staff(request):
-    if es_staff(request.user):
-        return None
-    messages.error(request, "Acceso no autorizado.")
-    return redirect('home')
 
 
 def redirect_si_no_admin_local(request):
     if es_admin_local(request.user):
         return None
     messages.error(request, "Esta accion corresponde al administrador del local.")
+    if request.user.is_superuser:
+        return redirect('cuentas_admin')
+    return redirect('home')
+
+
+def redirect_si_no_cliente_final(request):
+    if es_cliente_final(request.user):
+        return None
+    messages.error(request, "Esta seccion corresponde al cliente final.")
+    if request.user.is_superuser:
+        return redirect('cuentas_admin')
     return redirect('gestion_admin')
 
 
@@ -395,6 +396,8 @@ def chatbot_view(request):
 
 @login_required
 def disponibilidad_horarios_view(request):
+    if not es_cliente_final(request.user):
+        return JsonResponse({'horarios': [], 'estado': 'no_autorizado'}, status=403)
     negocio = negocio_para_request(request)
     sucursal_id = request.GET.get('sucursal')
     fecha = request.GET.get('fecha')
@@ -448,6 +451,9 @@ def disponibilidad_horarios_view(request):
 
 @login_required
 def agendar_cita_view(request):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     negocio = negocio_para_request(request)
     licencia = estado_licencia(negocio)
     if not licencia['activa'] and not request.user.is_superuser:
@@ -524,6 +530,9 @@ def agendar_cita_view(request):
 
 @login_required
 def mis_citas_view(request):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     citas_queryset = Cita.objects.select_related('sucursal', 'mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
     citas = Paginator(citas_queryset, 20).get_page(request.GET.get('page'))
     context = {
@@ -534,6 +543,9 @@ def mis_citas_view(request):
 
 @login_required
 def calificar_cita_view(request, cita_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     cita = get_object_or_404(
         Cita.objects.select_related('mascota', 'servicio'),
         id=cita_id,
@@ -567,6 +579,9 @@ def calificar_cita_view(request, cita_id):
 @login_required
 @require_POST
 def cancelar_cita_view(request, cita_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
     if request.POST.get('confirmacion', '').strip().upper() != 'CANCELAR':
         messages.error(request, "Para cancelar la cita debes escribir CANCELAR.")
@@ -583,6 +598,9 @@ def cancelar_cita_view(request, cita_id):
 
 @login_required
 def pagar_cita_view(request, cita_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     negocio = negocio_para_request(request)
     licencia = estado_licencia(negocio)
     if not licencia['activa'] and not request.user.is_superuser:
@@ -667,6 +685,9 @@ def pagar_cita_view(request, cita_id):
 @login_required
 def simular_pago_cita_view(request, cita_id):
     """Run the non-financial payment demo for an owned appointment."""
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     negocio = negocio_para_request(request)
     licencia = estado_licencia(negocio)
     if not licencia['activa'] and not request.user.is_superuser:
@@ -808,6 +829,9 @@ def crear_checkout_suscripcion_datafast(request, pago):
 
 @login_required
 def datafast_widget_view(request, cita_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     cita = get_object_or_404(
         Cita.objects.select_related('servicio', 'sucursal', 'mascota'),
         id=cita_id,
@@ -829,6 +853,9 @@ def datafast_widget_view(request, cita_id):
 
 @login_required
 def datafast_result_view(request, cita_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     cita = get_object_or_404(
         Cita.objects.select_related('servicio', 'sucursal', 'mascota'),
         id=cita_id,
@@ -899,6 +926,9 @@ def datafast_result_view(request, cita_id):
 
 @login_required
 def mis_mascotas_view(request):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     mascotas = Mascota.objects.filter(propietario=request.user).only(
         'nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto', 'foto_url'
     )
@@ -910,6 +940,9 @@ def mis_mascotas_view(request):
 
 @login_required
 def perfil_cliente_view(request):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     perfil, _ = PerfilCliente.objects.get_or_create(usuario=request.user)
     if request.method == 'POST':
         form = PerfilClienteForm(request.POST, instance=perfil, user=request.user)
@@ -925,6 +958,9 @@ def perfil_cliente_view(request):
 
 @login_required
 def nueva_mascota_view(request):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     negocio = negocio_para_request(request)
     if request.method == 'POST':
         form = MascotaForm(request.POST, request.FILES)
@@ -950,6 +986,9 @@ def nueva_mascota_view(request):
 
 @login_required
 def editar_mascota_view(request, mascota_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user)
     if request.method == 'POST':
         form = MascotaForm(request.POST, request.FILES, instance=mascota)
@@ -971,6 +1010,9 @@ def editar_mascota_view(request, mascota_id):
 @login_required
 @require_POST
 def eliminar_mascota_view(request, mascota_id):
+    redirect_response = redirect_si_no_cliente_final(request)
+    if redirect_response:
+        return redirect_response
     mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user)
     nombre = mascota.nombre
     mascota.delete()
@@ -981,8 +1023,11 @@ def eliminar_mascota_view(request, mascota_id):
 # Staff / Admin Panel View
 @login_required
 def gestion_admin_view(request):
-    if not es_staff(request.user):
-        messages.error(request, "Acceso restringido a administradores.")
+    if request.user.is_superuser:
+        messages.info(request, "La administracion del sistema se gestiona desde Cuentas y Django Admin.")
+        return redirect('cuentas_admin')
+    if not es_admin_local(request.user):
+        messages.error(request, "Acceso restringido al administrador del local.")
         return redirect('home')
     negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
@@ -1045,7 +1090,7 @@ def gestion_admin_view(request):
 
 @login_required
 def configuracion_negocio_view(request):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1368,7 +1413,7 @@ def datafast_suscripcion_result_view(request, pago_id):
 @login_required
 @require_POST
 def cambiar_estado_cita_view(request, cita_id):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1400,7 +1445,7 @@ def cambiar_estado_cita_view(request, cita_id):
 @login_required
 @require_POST
 def actualizar_pago_cita_view(request, cita_id):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1430,7 +1475,7 @@ def actualizar_pago_cita_view(request, cita_id):
 @login_required
 @require_POST
 def actualizar_seguimiento_cita_view(request, cita_id):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1529,7 +1574,7 @@ def toggle_servicio_view(request, servicio_id):
 
 @login_required
 def sucursal_form_view(request, sucursal_id=None):
-    redirect_response = redirect_si_no_staff(request)
+    redirect_response = redirect_si_no_admin_local(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1611,7 +1656,9 @@ def login_usuario_view(request):
                     require_https=request.is_secure(),
                 ):
                     next_page = 'home'
-                if next_page == 'home' and es_staff(user):
+                if next_page == 'home' and user.is_superuser:
+                    return redirect('cuentas_admin')
+                if next_page == 'home' and es_admin_local(user):
                     return redirect('gestion_admin')
                 return redirect(next_page)
         else:
