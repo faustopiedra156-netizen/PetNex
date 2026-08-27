@@ -22,9 +22,9 @@
                     <div>
                         <div class="flex items-center gap-4 mb-4">
                             {% if mascota.foto %}
-                                <img src="{{ mascota.foto.url }}" alt="{{ mascota.nombre }}" class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-200">
+                                <img src="{{ mascota.foto.url }}" alt="{{ mascota.nombre }}" loading="lazy" decoding="async" class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-200">
                             {% elif mascota.foto_url %}
-                                <img src="{{ mascota.foto_url }}" alt="{{ mascota.nombre }}" class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-200">
+                                <img src="{{ mascota.foto_url }}" alt="{{ mascota.nombre }}" loading="lazy" decoding="async" class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-200">
                             {% else %}
                                 <div class="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-[#00685f]">
                                     <span class="material-symbols-outlined text-3xl">pets</span>

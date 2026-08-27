@@ -4,9 +4,11 @@ from .services import obtener_configuracion_negocio, obtener_negocio_usuario, ob
 
 
 def business_settings(request):
-    negocio_actual = None
+    negocio_actual = getattr(request, '_petnexo_negocio_actual', None)
     try:
-        negocio_actual = obtener_negocio_usuario(request.user) or obtener_negocio_publico()
+        if not hasattr(request, '_petnexo_negocio_actual'):
+            negocio_actual = obtener_negocio_usuario(request.user) or obtener_negocio_publico()
+            request._petnexo_negocio_actual = negocio_actual
         business = obtener_configuracion_negocio(negocio_actual)
     except (OperationalError, ProgrammingError):
         from django.conf import settings

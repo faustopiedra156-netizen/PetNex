@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
+from django.utils import timezone
 from .models import (
     Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio,
     Sucursal, SuscripcionNegocio, Negocio, MensajeContacto,
@@ -64,6 +65,18 @@ class MascotaForm(forms.ModelForm):
             raise forms.ValidationError('La foto no puede superar los 5 MB.')
         return foto
 
+    def clean_edad(self):
+        edad = self.cleaned_data.get('edad')
+        if edad is not None and not 0 <= edad <= 30:
+            raise forms.ValidationError('La edad debe estar entre 0 y 30 años.')
+        return edad
+
+    def clean_peso_kg(self):
+        peso = self.cleaned_data.get('peso_kg')
+        if peso is not None and not 0.1 <= peso <= 200:
+            raise forms.ValidationError('El peso debe estar entre 0,1 y 200 kg.')
+        return peso
+
 
 class CitaForm(forms.ModelForm):
     class Meta:
@@ -83,7 +96,7 @@ class CitaForm(forms.ModelForm):
         self.user = user
         self.negocio = negocio
         super().__init__(*args, **kwargs)
-        self.fields['fecha'].widget.attrs['min'] = datetime.date.today().isoformat()
+        self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()
         if user and user.is_authenticated:
             self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).select_related('propietario').only('nombre', 'raza', 'propietario__username', 'propietario__first_name', 'propietario__last_name')
         sucursales = Sucursal.objects.filter(activa=True)
@@ -100,8 +113,10 @@ class CitaForm(forms.ModelForm):
         self.fields['hora'].error_messages['required'] = "Selecciona una hora disponible en la agenda."
 
     def clean_fecha(self):
-        fecha = self.cleaned_data['fecha']
-        if fecha < datetime.date.today():
+        fecha = self.cleaned_data.get('fecha')
+        if not fecha:
+            return fecha
+        if fecha < timezone.localdate():
             raise forms.ValidationError("No puedes agendar una cita en una fecha pasada.")
         sucursal = self.cleaned_data.get('sucursal')
         if sucursal and not sucursal.atiende_en_fecha(fecha):
@@ -111,7 +126,9 @@ class CitaForm(forms.ModelForm):
         return fecha
 
     def clean_hora(self):
-        hora = self.cleaned_data['hora']
+        hora = self.cleaned_data.get('hora')
+        if not hora:
+            return hora
         sucursal = self.cleaned_data.get('sucursal')
         if sucursal:
             horarios_permitidos = set(sucursal.generar_horarios())
@@ -169,7 +186,9 @@ class AdminUsuarioForm(forms.ModelForm):
         return username
 
     def clean_password(self):
-        password = self.cleaned_data['password']
+        password = self.cleaned_data.get('password')
+        if not password:
+            return password
         validate_password(password, self.instance)
         return password
 
@@ -245,7 +264,9 @@ class SucursalForm(forms.ModelForm):
         return cleaned_data
 
     def clean_intervalo_turnos(self):
-        intervalo = self.cleaned_data['intervalo_turnos']
+        intervalo = self.cleaned_data.get('intervalo_turnos')
+        if intervalo is None:
+            return intervalo
         if intervalo < 5 or intervalo > 180:
             raise forms.ValidationError("El intervalo debe estar entre 5 y 180 minutos.")
         return intervalo

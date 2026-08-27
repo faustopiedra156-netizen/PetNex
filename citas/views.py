@@ -107,11 +107,16 @@ def es_responsable_suscripcion(user):
 
 
 def negocio_para_request(request):
+    if hasattr(request, '_petnexo_negocio_actual'):
+        return request._petnexo_negocio_actual
+
     if request.user.is_authenticated:
         negocio = obtener_negocio_usuario(request.user)
         if negocio:
+            request._petnexo_negocio_actual = negocio
             return negocio
-    return obtener_negocio_publico()
+    request._petnexo_negocio_actual = obtener_negocio_publico()
+    return request._petnexo_negocio_actual
 
 
 def negocio_admin_o_redirect(request):
@@ -221,13 +226,23 @@ def home_view(request):
         )[:settings.HOME_SERVICES_LIMIT]
         metricas = cache.get(cache_key)
         if metricas is None:
-            mascotas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').values('mascota_id').distinct().count()
-            total_citas_operativas = Cita.objects.filter(negocio=negocio).exclude(estado='CANCELADA').count()
-            citas_atendidas = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').count()
+            resumen_citas = Cita.objects.filter(negocio=negocio).aggregate(
+                mascotas_atendidas=Count(
+                    'mascota',
+                    distinct=True,
+                    filter=Q(estado='ATENDIDA'),
+                ),
+                total_citas_operativas=Count(
+                    'id',
+                    filter=~Q(estado='CANCELADA'),
+                ),
+                citas_atendidas=Count('id', filter=Q(estado='ATENDIDA')),
+            )
             resumen_resenas = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'), total=Count('id'))
+            total_citas_operativas = resumen_citas['total_citas_operativas']
             metricas = {
-                'mascotas_atendidas': mascotas_atendidas,
-                'tasa_atencion': round((citas_atendidas / total_citas_operativas) * 100) if total_citas_operativas else 0,
+                'mascotas_atendidas': resumen_citas['mascotas_atendidas'],
+                'tasa_atencion': round((resumen_citas['citas_atendidas'] / total_citas_operativas) * 100) if total_citas_operativas else 0,
                 'promedio_resenas': round(resumen_resenas['promedio'] or 0, 1),
                 'total_resenas': resumen_resenas['total'],
             }
@@ -559,7 +574,7 @@ def cancelar_cita_view(request, cita_id):
 
     if cita.estado in ESTADOS_EDITABLES_CLIENTE:
         cita.estado = 'CANCELADA'
-        cita.save()
+        cita.save(update_fields=['estado'])
         messages.warning(request, f"La cita para {cita.mascota.nombre} ha sido cancelada.")
     else:
         messages.error(request, "Esta cita no se puede cancelar.")
@@ -604,7 +619,7 @@ def pagar_cita_view(request, cita_id):
             cita.metodo_pago = 'TRANSFERENCIA'
             cita.estado_pago = 'ABONADO'
             cita.referencia_pago = referencia
-            cita.save()
+            cita.save(update_fields=['metodo_pago', 'estado_pago', 'referencia_pago'])
             messages.success(request, f"Transferencia registrada. {obtener_configuracion_negocio(cita.negocio)['name']} confirmara el pago en el panel administrativo.")
             return redirect('mis_citas')
 
@@ -612,7 +627,7 @@ def pagar_cita_view(request, cita_id):
             cita.metodo_pago = 'EFECTIVO'
             cita.estado_pago = 'PENDIENTE'
             cita.referencia_pago = 'Pago en local'
-            cita.save()
+            cita.save(update_fields=['metodo_pago', 'estado_pago', 'referencia_pago'])
             messages.info(request, "Tu cita quedó marcada para pago físico en el local.")
             return redirect('mis_citas')
 
@@ -625,7 +640,7 @@ def pagar_cita_view(request, cita_id):
             if checkout_id:
                 cita.metodo_pago = 'TARJETA'
                 cita.datafast_checkout_id = checkout_id
-                cita.save()
+                cita.save(update_fields=['metodo_pago', 'datafast_checkout_id'])
                 return redirect('datafast_widget', cita_id=cita.id)
 
             messages.error(request, "No se pudo iniciar el pago con tarjeta. Intenta nuevamente.")
@@ -905,9 +920,12 @@ def gestion_admin_view(request):
         atendidas=Count('id', filter=Q(estado='ATENDIDA')),
         hoy=Count('id', filter=Q(fecha=hoy)),
         pagos_pendientes=Count('id', filter=Q(estado_pago__in=['PENDIENTE', 'ABONADO'])),
+        ingresos=Sum('precio_acordado', filter=Q(estado='ATENDIDA')),
+        ingresos_mes=Sum(
+            'precio_acordado',
+            filter=Q(estado='ATENDIDA', fecha__gte=inicio_mes),
+        ),
     )
-    ingresos = Cita.objects.filter(negocio=negocio, estado='ATENDIDA').aggregate(total=Sum('precio_acordado'))['total'] or 0
-    ingresos_mes = Cita.objects.filter(negocio=negocio, estado='ATENDIDA', fecha__gte=inicio_mes).aggregate(total=Sum('precio_acordado'))['total'] or 0
     promedio_calificacion = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
     citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio, fecha=hoy).order_by('sucursal__nombre', 'hora')[:settings.ADMIN_TODAY_APPOINTMENTS_LIMIT]
     licencia = estado_licencia(negocio)
@@ -925,8 +943,8 @@ def gestion_admin_view(request):
         'atendidas': resumen['atendidas'],
         'citas_de_hoy': resumen['hoy'],
         'pagos_pendientes': resumen['pagos_pendientes'],
-        'ingresos': ingresos,
-        'ingresos_mes': ingresos_mes,
+        'ingresos': resumen['ingresos'] or 0,
+        'ingresos_mes': resumen['ingresos_mes'] or 0,
         'promedio_calificacion': round(promedio_calificacion, 1),
         'licencia_actual': licencia,
     }
@@ -1256,11 +1274,15 @@ def cambiar_estado_cita_view(request, cita_id):
         messages.error(request, estado_licencia(negocio)['mensaje'])
         return redirect('gestion_admin')
 
-    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio)
+    cita = get_object_or_404(
+        Cita.objects.select_related('mascota', 'sucursal', 'servicio', 'propietario'),
+        id=cita_id,
+        negocio=negocio,
+    )
     nuevo_estado = request.POST.get('nuevo_estado')
     if nuevo_estado in ['PENDIENTE', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA']:
         cita.estado = nuevo_estado
-        cita.save()
+        cita.save(update_fields=['estado'])
         enviar_notificacion(
             f"Estado de cita actualizado: {cita.get_estado_display()}",
             f"La cita de {cita.mascota.nombre} en {cita.sucursal.nombre} para {cita.servicio.nombre} ahora esta en estado: {cita.get_estado_display()}.",
@@ -1293,7 +1315,7 @@ def actualizar_pago_cita_view(request, cita_id):
     if estado_pago in estados_validos and metodo_pago in metodos_validos:
         cita.estado_pago = estado_pago
         cita.metodo_pago = metodo_pago
-        cita.save()
+        cita.save(update_fields=['estado_pago', 'metodo_pago'])
         messages.success(request, f"Pago de cita #{cita.id} actualizado.")
     else:
         messages.error(request, "Datos de pago inválidos.")
@@ -1314,7 +1336,11 @@ def actualizar_seguimiento_cita_view(request, cita_id):
         messages.error(request, estado_licencia(negocio)['mensaje'])
         return redirect('gestion_admin')
 
-    cita = get_object_or_404(Cita, id=cita_id, negocio=negocio)
+    cita = get_object_or_404(
+        Cita.objects.select_related('mascota', 'propietario'),
+        id=cita_id,
+        negocio=negocio,
+    )
     etapa = request.POST.get('etapa_seguimiento')
     nota = request.POST.get('nota_seguimiento', '').strip()
 
@@ -1325,7 +1351,15 @@ def actualizar_seguimiento_cita_view(request, cita_id):
         cita.nota_seguimiento = nota
         if etapa == 'ENTREGADA':
             cita.estado = 'ATENDIDA'
-        cita.save()
+        update_fields = [
+            'etapa_seguimiento',
+            'progreso',
+            'nota_seguimiento',
+            'actualizado_seguimiento',
+        ]
+        if etapa == 'ENTREGADA':
+            update_fields.append('estado')
+        cita.save(update_fields=update_fields)
         enviar_notificacion(
             f"Seguimiento actualizado: {cita.mascota.nombre}",
             f"Etapa actual: {etapas_validas[etapa]}. Nota: {nota or 'Sin nota adicional.'}",
@@ -1545,8 +1579,11 @@ def solicitar_codigo_recuperacion_view(request):
                             recipient_list=[user.email],
                             fail_silently=False,
                         )
-                    except Exception:
-                        logger.exception("No se pudo enviar el codigo de recuperacion.")
+                    except Exception as error:
+                        logger.warning(
+                            "No se pudo enviar el codigo de recuperacion (%s).",
+                            type(error).__name__,
+                        )
 
             # Do not reveal whether a specific email has an account.
             return redirect('password_reset_verify')
