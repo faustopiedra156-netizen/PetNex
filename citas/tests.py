@@ -10,7 +10,16 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from .email_backend import BrevoEmailBackend
-from .models import Cita, CodigoRecuperacionContrasena, Mascota, Negocio, Servicio, Sucursal
+from .models import (
+    Cita,
+    CodigoRecuperacionContrasena,
+    Mascota,
+    Negocio,
+    PlanSuscripcion,
+    Servicio,
+    Sucursal,
+    SuscripcionNegocio,
+)
 from .services import enviar_notificacion
 
 
@@ -122,6 +131,17 @@ class PagoSimuladoTests(TestCase):
             nombre='Local de pruebas',
             propietario=self.user,
         )
+        self.plan = PlanSuscripcion.objects.create(
+            nombre='Plan sin pagos para pruebas',
+            precio_mensual=Decimal('0.00'),
+            permite_pagos=False,
+        )
+        SuscripcionNegocio.objects.create(
+            negocio=self.negocio,
+            plan=self.plan,
+            estado='ACTIVA',
+            fecha_vencimiento=datetime.date.today() + datetime.timedelta(days=30),
+        )
         self.sucursal = Sucursal.objects.create(
             negocio=self.negocio,
             nombre='Sucursal principal',
@@ -186,6 +206,14 @@ class PagoSimuladoTests(TestCase):
         self.assertEqual(self.cita.estado_pago, 'PENDIENTE')
         self.assertEqual(self.cita.referencia_pago, '')
 
+    @override_settings(SIMULATE_PAYMENTS=False)
+    def test_plan_sin_pagos_bloquea_el_flujo_real(self):
+        response = self.client.get(reverse('pagar_cita', args=[self.cita.id]))
+
+        self.assertRedirects(response, reverse('mis_citas'))
+        self.cita.refresh_from_db()
+        self.assertEqual(self.cita.estado_pago, 'PENDIENTE')
+
     def test_cita_ajena_no_puede_ser_modificada(self):
         self.client.logout()
         self.client.login(username='otro_cliente', password='clave-segura-para-pruebas')
@@ -202,6 +230,8 @@ class PagoSimuladoTests(TestCase):
 
     @override_settings(SIMULATE_PAYMENTS=False)
     def test_desactivado_conserva_el_flujo_datafast(self):
+        self.plan.permite_pagos = True
+        self.plan.save(update_fields=['permite_pagos'])
         with patch('citas.views.datafast_configurado', return_value=True), patch(
             'citas.views.crear_checkout_datafast', return_value='checkout-de-prueba'
         ) as checkout_mock:

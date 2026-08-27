@@ -588,7 +588,12 @@ def pagar_cita_view(request, cita_id):
     if not licencia['activa'] and not request.user.is_superuser:
         messages.error(request, licencia['mensaje'])
         return redirect('mis_citas')
-    if licencia['suscripcion'] and not licencia['suscripcion'].plan.permite_pagos and not request.user.is_superuser:
+    if (
+        not settings.SIMULATE_PAYMENTS
+        and licencia['suscripcion']
+        and not licencia['suscripcion'].plan.permite_pagos
+        and not request.user.is_superuser
+    ):
         messages.error(request, "Tu plan actual de PetNexo no incluye gestion de pagos.")
         return redirect('mis_citas')
 
@@ -667,7 +672,12 @@ def simular_pago_cita_view(request, cita_id):
     if not licencia['activa'] and not request.user.is_superuser:
         messages.error(request, licencia['mensaje'])
         return redirect('mis_citas')
-    if licencia['suscripcion'] and not licencia['suscripcion'].plan.permite_pagos and not request.user.is_superuser:
+    if (
+        not settings.SIMULATE_PAYMENTS
+        and licencia['suscripcion']
+        and not licencia['suscripcion'].plan.permite_pagos
+        and not request.user.is_superuser
+    ):
         messages.error(request, "Tu plan actual de PetNexo no incluye gestion de pagos.")
         return redirect('mis_citas')
 
