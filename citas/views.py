@@ -632,6 +632,9 @@ def pagar_cita_view(request, cita_id):
             return redirect('mis_citas')
 
         if metodo_pago == 'TARJETA':
+            if settings.SIMULATE_PAYMENTS:
+                return redirect('simular_pago_cita', cita_id=cita.id)
+
             if not datafast_configurado():
                 messages.error(request, "El pago con tarjeta aún no tiene credenciales Datafast configuradas.")
                 return redirect('pagar_cita', cita_id=cita.id)
@@ -652,10 +655,80 @@ def pagar_cita_view(request, cita_id):
         'cita': cita,
         'transferencia': transferencia,
         'tarjeta_configurada': datafast_configurado(),
+        'simulacion_pagos': settings.SIMULATE_PAYMENTS,
+    })
+
+
+@login_required
+def simular_pago_cita_view(request, cita_id):
+    """Run the non-financial payment demo for an owned appointment."""
+    negocio = negocio_para_request(request)
+    licencia = estado_licencia(negocio)
+    if not licencia['activa'] and not request.user.is_superuser:
+        messages.error(request, licencia['mensaje'])
+        return redirect('mis_citas')
+    if licencia['suscripcion'] and not licencia['suscripcion'].plan.permite_pagos and not request.user.is_superuser:
+        messages.error(request, "Tu plan actual de PetNexo no incluye gestion de pagos.")
+        return redirect('mis_citas')
+
+    cita_queryset = Cita.objects.select_related('servicio', 'sucursal', 'mascota')
+    cita_filter = {
+        'id': cita_id,
+        'negocio': negocio,
+        'propietario': request.user,
+    }
+    cita = get_object_or_404(cita_queryset, **cita_filter)
+
+    if not settings.SIMULATE_PAYMENTS:
+        messages.error(request, "El modo de simulacion de pagos no esta habilitado.")
+        return redirect('pagar_cita', cita_id=cita.id)
+    if cita.estado == 'CANCELADA':
+        messages.error(request, "No puedes pagar una cita cancelada.")
+        return redirect('mis_citas')
+    if cita.estado_pago == 'PAGADO':
+        messages.info(request, "Esta cita ya se encuentra pagada.")
+        return redirect('mis_citas')
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'rechazar':
+            messages.warning(request, "Pago simulado rechazado. No se realizo ningun cobro.")
+            return redirect('mis_citas')
+        if accion != 'aprobar':
+            messages.error(request, "Selecciona una respuesta de simulacion valida.")
+            return redirect('simular_pago_cita', cita_id=cita.id)
+
+        with transaction.atomic():
+            cita = get_object_or_404(
+                cita_queryset.select_for_update(),
+                **cita_filter,
+            )
+            if cita.estado == 'CANCELADA':
+                messages.error(request, "No puedes pagar una cita cancelada.")
+                return redirect('mis_citas')
+            if cita.estado_pago == 'PAGADO':
+                messages.info(request, "Esta cita ya se encuentra pagada.")
+                return redirect('mis_citas')
+
+            referencia = f'SIM-{cita.id}-{timezone.now():%Y%m%d%H%M%S%f}'
+            cita.estado_pago = 'PAGADO'
+            cita.metodo_pago = 'TARJETA'
+            cita.referencia_pago = referencia
+            cita.save(update_fields=['estado_pago', 'metodo_pago', 'referencia_pago'])
+
+        messages.success(request, "Pago simulado correctamente. No se realizo ningun cobro real.")
+        return redirect('mis_citas')
+
+    return render(request, 'simulacion_pago.html', {
+        'cita': cita,
+        'monto': cita.precio_acordado or cita.servicio.precio,
     })
 
 
 def crear_checkout_datafast(request, cita):
+    if settings.SIMULATE_PAYMENTS:
+        return None
+
     url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
     user = request.user
     negocio = obtener_configuracion_negocio(cita.negocio)
@@ -694,6 +767,9 @@ def normalizar_ciclo_facturacion(valor):
 
 
 def crear_checkout_suscripcion_datafast(request, pago):
+    if settings.SIMULATE_PAYMENTS:
+        return None
+
     url = f"{settings.DATAFAST_BASE_URL}/v1/checkouts"
     user = request.user
     negocio = obtener_configuracion_negocio(pago.suscripcion.negocio)
@@ -728,6 +804,9 @@ def datafast_widget_view(request, cita_id):
         negocio=negocio_para_request(request),
         propietario=request.user,
     )
+    if settings.SIMULATE_PAYMENTS:
+        messages.info(request, "El modo de simulacion esta activo para este entorno.")
+        return redirect('simular_pago_cita', cita_id=cita.id)
     if not cita.datafast_checkout_id:
         messages.error(request, "Primero inicia el pago con tarjeta.")
         return redirect('pagar_cita', cita_id=cita.id)
@@ -746,6 +825,9 @@ def datafast_result_view(request, cita_id):
         negocio=negocio_para_request(request),
         propietario=request.user,
     )
+    if settings.SIMULATE_PAYMENTS:
+        messages.info(request, "El modo de simulacion esta activo para este entorno.")
+        return redirect('simular_pago_cita', cita_id=cita.id)
     resource_path = request.GET.get('resourcePath', '')
     if (
         not cita.datafast_checkout_id
@@ -1127,6 +1209,10 @@ def crear_pago_suscripcion_view(request):
     if request.method != 'POST':
         return redirect('suscripcion_negocio')
 
+    if settings.SIMULATE_PAYMENTS:
+        messages.info(request, "La simulacion de pagos esta disponible para citas. No se inicio Datafast.")
+        return redirect('suscripcion_negocio')
+
     if not datafast_configurado():
         messages.error(request, "Configura las credenciales Datafast de tu cuenta comercial para cobrar suscripciones con tarjeta.")
         return redirect('suscripcion_negocio')
@@ -1166,6 +1252,10 @@ def datafast_suscripcion_widget_view(request, pago_id):
     if redirect_response:
         return redirect_response
 
+    if settings.SIMULATE_PAYMENTS:
+        messages.info(request, "La simulacion de pagos esta activa. No se inicio Datafast.")
+        return redirect('suscripcion_negocio')
+
     pago = get_object_or_404(
         PagoSuscripcion.objects.select_related('plan', 'suscripcion__negocio'),
         id=pago_id,
@@ -1191,6 +1281,10 @@ def datafast_suscripcion_result_view(request, pago_id):
     negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
         return redirect_response
+
+    if settings.SIMULATE_PAYMENTS:
+        messages.info(request, "La simulacion de pagos esta activa. No se verifico Datafast.")
+        return redirect('suscripcion_negocio')
 
     pago = get_object_or_404(
         PagoSuscripcion.objects.select_related('plan', 'suscripcion__negocio'),
@@ -1579,11 +1673,8 @@ def solicitar_codigo_recuperacion_view(request):
                             recipient_list=[user.email],
                             fail_silently=False,
                         )
-                    except Exception as error:
-                        logger.warning(
-                            "No se pudo enviar el codigo de recuperacion (%s).",
-                            type(error).__name__,
-                        )
+                    except Exception:
+                        logger.exception("No se pudo enviar el codigo de recuperacion.")
 
             # Do not reveal whether a specific email has an account.
             return redirect('password_reset_verify')

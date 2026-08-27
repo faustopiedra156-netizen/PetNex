@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Simulaci&oacute;n de pago - {{ business.name }}{% endblock %}
+
+{% block content %}
+<div class="py-12 max-w-4xl mx-auto px-4 sm:px-6">
+    <div class="rounded-3xl border-2 border-amber-300 bg-amber-50 p-5 sm:p-6 shadow-sm">
+        <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-amber-700 text-2xl">science</span>
+            <div>
+                <p class="font-headline font-black uppercase tracking-wide text-amber-900">Modo simulaci&oacute;n</p>
+                <p class="mt-1 text-sm leading-6 text-amber-900">Esta pantalla es solo para demostraci&oacute;n y pruebas. <strong>No se realizar&aacute; ning&uacute;n cobro real.</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        <section class="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+            <span class="text-xs font-bold text-[#00685f] uppercase tracking-wide">Pago de demostraci&oacute;n</span>
+            <h1 class="font-headline font-black text-2xl text-slate-900 mt-2">Cita #{{ cita.id }}</h1>
+            <p class="text-sm text-slate-500 mt-1">Selecciona una respuesta para continuar el flujo de prueba.</p>
+
+            <dl class="mt-6 divide-y divide-slate-100 text-sm">
+                <div class="py-3 flex justify-between gap-4"><dt class="text-slate-500">Mascota</dt><dd class="font-bold text-right">{{ cita.mascota.nombre }}</dd></div>
+                <div class="py-3 flex justify-between gap-4"><dt class="text-slate-500">Servicio</dt><dd class="font-bold text-right">{{ cita.servicio.nombre }}</dd></div>
+                <div class="py-3 flex justify-between gap-4"><dt class="text-slate-500">Sucursal</dt><dd class="font-bold text-right">{{ cita.sucursal.nombre }}</dd></div>
+                <div class="py-3 flex justify-between gap-4"><dt class="text-slate-500">Fecha y hora</dt><dd class="font-bold text-right">{{ cita.fecha|date:"d M Y" }} · {{ cita.hora|time:"H:i" }}</dd></div>
+                <div class="py-3 flex justify-between gap-4"><dt class="text-slate-500">M&eacute;todo</dt><dd class="font-bold text-right">Tarjeta simulada</dd></div>
+            </dl>
+
+            <div class="mt-5 rounded-2xl bg-slate-50 border border-slate-200 p-4 flex items-end justify-between gap-4">
+                <span class="text-sm text-slate-500">Monto de prueba</span>
+                <span class="font-headline font-black text-3xl text-[#00685f]">{{ business.currency_symbol }}{{ monto }}</span>
+            </div>
+        </section>
+
+        <section class="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+            <h2 class="font-headline font-black text-xl text-slate-900">Resultado de la simulaci&oacute;n</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-500">No ingreses n&uacute;meros de tarjeta, CVV, fechas ni cuentas bancarias.</p>
+
+            <form method="post" class="mt-6 space-y-3">
+                {% csrf_token %}
+                <button type="submit" name="accion" value="aprobar" class="w-full rounded-xl bg-[#00685f] px-4 py-3 text-white font-headline font-bold hover:bg-teal-800 transition">
+                    <span class="material-symbols-outlined align-middle text-base mr-1">check_circle</span>
+                    Simular pago aprobado
+                </button>
+                <button type="submit" name="accion" value="rechazar" class="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 font-headline font-bold hover:bg-red-100 transition">
+                    <span class="material-symbols-outlined align-middle text-base mr-1">cancel</span>
+                    Simular pago rechazado
+                </button>
+            </form>
+
+            <a href="{% url 'pagar_cita' cita.id %}" class="mt-5 block text-center text-sm font-semibold text-slate-500 hover:text-[#00685f]">Volver a m&eacute;todos de pago</a>
+        </section>
+    </div>
+</div>
+{% endblock %}

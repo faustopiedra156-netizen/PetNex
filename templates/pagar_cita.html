@@ -38,7 +38,15 @@
                     <span class="material-symbols-outlined text-[#00685f]">credit_card</span>
                 </div>
 
-                {% if tarjeta_configurada %}
+                {% if simulacion_pagos %}
+                    <div class="mt-5 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p class="font-headline font-black uppercase tracking-wide">Modo simulaci&oacute;n</p>
+                        <p class="mt-1">No se solicitar&aacute;n datos de tarjeta y no se realizar&aacute; ning&uacute;n cobro real.</p>
+                    </div>
+                    <a href="{% url 'simular_pago_cita' cita.id %}" class="mt-5 block w-full py-3 rounded-xl bg-[#00685f] text-white text-center font-headline font-bold hover:bg-teal-800">
+                        Abrir simulaci&oacute;n de pago
+                    </a>
+                {% elif tarjeta_configurada %}
                     <form method="post" class="mt-5">
                         {% csrf_token %}
                         <input type="hidden" name="metodo_pago" value="TARJETA">

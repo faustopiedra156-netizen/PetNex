@@ -315,6 +315,7 @@ DATAFAST_ENTITY_ID = os.getenv('DATAFAST_ENTITY_ID', '')
 DATAFAST_AUTHORIZATION = os.getenv('DATAFAST_AUTHORIZATION', '')
 DATAFAST_BRANDS = os.getenv('DATAFAST_BRANDS', 'VISA MASTER AMEX DINERS DISCOVER')
 DATAFAST_TIMEOUT_SECONDS = env_int('DATAFAST_TIMEOUT_SECONDS', 10)
+SIMULATE_PAYMENTS = env_bool('SIMULATE_PAYMENTS', False)
 
 APPOINTMENT_OPEN_TIME = os.getenv('APPOINTMENT_OPEN_TIME', '08:30')
 APPOINTMENT_CLOSE_TIME = os.getenv('APPOINTMENT_CLOSE_TIME', '18:30')
@@ -435,10 +436,10 @@ PETCARE_CONTACT_PHONE = BUSINESS_CONTACT_PHONE
 PETCARE_ADDRESS = BUSINESS_ADDRESS
 
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-RESEND_API_KEY = os.getenv('RESEND_API_KEY', '').strip()
-RESEND_SENDER_EMAIL = os.getenv('RESEND_SENDER_EMAIL', '').strip()
-RESEND_SENDER_NAME = os.getenv('RESEND_SENDER_NAME', APP_NAME).strip()
-RESEND_TIMEOUT_SECONDS = env_int('RESEND_TIMEOUT_SECONDS', 10)
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '').strip()
+BREVO_SENDER_EMAIL = os.getenv('BREVO_SENDER_EMAIL', '').strip()
+BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME', APP_NAME).strip()
+BREVO_TIMEOUT_SECONDS = env_int('BREVO_TIMEOUT_SECONDS', 10)
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
 EMAIL_PORT = env_int('EMAIL_PORT', 587)
 EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
@@ -449,12 +450,8 @@ ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', BUSINESS_CONTAC
 
 if os.getenv('RENDER') and EMAIL_BACKEND.endswith('console.EmailBackend'):
     raise ImproperlyConfigured('Configura un proveedor SMTP o transaccional para enviar correos en produccion.')
-if (
-    EMAIL_BACKEND == 'citas.email_backend.ResendEmailBackend'
-    and os.getenv('RENDER')
-    and (not RESEND_API_KEY or not RESEND_SENDER_EMAIL)
-):
-    raise ImproperlyConfigured('Configura RESEND_API_KEY y RESEND_SENDER_EMAIL para usar Resend.')
+if EMAIL_BACKEND == 'citas.email_backend.BrevoEmailBackend' and (not BREVO_API_KEY or not BREVO_SENDER_EMAIL):
+    raise ImproperlyConfigured('Configura BREVO_API_KEY y BREVO_SENDER_EMAIL para usar Brevo.')
 
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False

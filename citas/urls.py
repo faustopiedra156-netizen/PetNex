@@ -15,6 +15,7 @@ urlpatterns = [
     path('citas/mis-citas/', views.mis_citas_view, name='mis_citas'),
     path('citas/<int:cita_id>/calificar/', views.calificar_cita_view, name='calificar_cita'),
     path('citas/<int:cita_id>/pagar/', views.pagar_cita_view, name='pagar_cita'),
+    path('citas/<int:cita_id>/pago/simulacion/', views.simular_pago_cita_view, name='simular_pago_cita'),
     path('citas/<int:cita_id>/tarjeta/', views.datafast_widget_view, name='datafast_widget'),
     path('citas/<int:cita_id>/tarjeta/resultado/', views.datafast_result_view, name='datafast_result'),
     path('citas/cancelar/<int:cita_id>/', views.cancelar_cita_view, name='cancelar_cita'),
