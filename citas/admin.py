@@ -46,7 +46,7 @@ class ConfiguracionNegocioAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'negocio', 'ciudad', 'telefono', 'email', 'actualizado_en')
     fieldsets = (
         ('Identidad', {'fields': ('negocio', 'nombre', 'nombre_corto', 'categoria', 'slogan')}),
-        ('Ubicación y contacto', {'fields': ('ciudad', 'pais', 'codigo_pais', 'direccion', 'telefono', 'email', 'horario')}),
+        ('Ubicación y contacto', {'fields': ('ciudad', 'pais', 'codigo_pais', 'direccion', 'latitud', 'longitud', 'telefono', 'email', 'horario')}),
         ('Página pública', {'fields': ('hero_badge', 'hero_titulo', 'hero_descripcion', 'descripcion_footer', 'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal')}),
         ('Operación', {'fields': ('moneda', 'simbolo_moneda', 'prefijo_transaccion', 'mostrar_cuentas_demo', 'google_login_activo')}),
     )

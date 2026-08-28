@@ -38,6 +38,26 @@
         {% endfor %}
 
         <section>
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="font-headline font-black text-xl text-slate-900">Ubicación en el mapa</h2>
+                    <p class="text-sm text-slate-500 mt-1">Marca el punto exacto del local. Esta ubicación será visible para el público.</p>
+                </div>
+                <span class="material-symbols-outlined text-[#00685f] text-2xl">map</span>
+            </div>
+            {{ form.latitud }}
+            {{ form.longitud }}
+            <div id="businessLocationMap" class="h-72 rounded-2xl border border-slate-200 overflow-hidden bg-slate-100" data-lat="{{ form.latitud.value|default:'' }}" data-lng="{{ form.longitud.value|default:'' }}"></div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3">
+                <p id="locationCoordinates" class="text-xs text-slate-500">Selecciona un punto en el mapa.</p>
+                <button id="useCurrentLocation" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50">
+                    <span class="material-symbols-outlined text-base">my_location</span>
+                    Usar mi ubicación
+                </button>
+            </div>
+        </section>
+
+        <section>
             <h2 class="font-headline font-black text-xl text-slate-900 mb-4">Opciones</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
@@ -58,4 +78,56 @@
         </div>
     </form>
 </div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3Hymp2mB4f8e5z4f6z1s4m0f5h4=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapElement = document.getElementById('businessLocationMap');
+        if (!mapElement || typeof L === 'undefined') return;
+
+        const latInput = document.getElementById('id_latitud');
+        const lngInput = document.getElementById('id_longitud');
+        const coordinates = document.getElementById('locationCoordinates');
+        const currentLocationButton = document.getElementById('useCurrentLocation');
+        const defaultCenter = [-1.8312, -78.1834];
+        const savedLat = Number.parseFloat(mapElement.dataset.lat);
+        const savedLng = Number.parseFloat(mapElement.dataset.lng);
+        const hasSavedLocation = Number.isFinite(savedLat) && Number.isFinite(savedLng);
+        const map = L.map(mapElement).setView(hasSavedLocation ? [savedLat, savedLng] : defaultCenter, hasSavedLocation ? 16 : 7);
+        let marker = null;
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        function setLocation(lat, lng) {
+            const normalizedLat = Number(lat).toFixed(6);
+            const normalizedLng = Number(lng).toFixed(6);
+            latInput.value = normalizedLat;
+            lngInput.value = normalizedLng;
+            coordinates.textContent = `Ubicación seleccionada: ${normalizedLat}, ${normalizedLng}`;
+            if (!marker) marker = L.marker([lat, lng]).addTo(map);
+            else marker.setLatLng([lat, lng]);
+            map.setView([lat, lng], Math.max(map.getZoom(), 16));
+        }
+
+        if (hasSavedLocation) setLocation(savedLat, savedLng);
+        map.on('click', function (event) { setLocation(event.latlng.lat, event.latlng.lng); });
+
+        currentLocationButton.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                coordinates.textContent = 'Tu navegador no permite obtener la ubicación automáticamente.';
+                return;
+            }
+            coordinates.textContent = 'Obteniendo tu ubicación...';
+            navigator.geolocation.getCurrentPosition(
+                position => setLocation(position.coords.latitude, position.coords.longitude),
+                () => { coordinates.textContent = 'No se pudo obtener la ubicación. Selecciona el punto manualmente.'; },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        });
+        setTimeout(() => map.invalidateSize(), 100);
+    });
+</script>
 {% endblock %}

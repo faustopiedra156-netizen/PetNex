@@ -205,6 +205,8 @@ class ConfiguracionNegocio(models.Model):
     email = models.EmailField(default='contacto@negocio.com')
     telefono = models.CharField(max_length=30, default='+593 99 999 9999')
     direccion = models.CharField(max_length=180, default='Direccion del local')
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Latitud del local')
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Longitud del local')
     horario = models.CharField(max_length=120, default='Lun - Sab: 08:30 - 18:30')
     moneda = models.CharField(max_length=10, default='USD')
     simbolo_moneda = models.CharField(max_length=5, default='$')
@@ -250,6 +252,8 @@ class ConfiguracionNegocio(models.Model):
             'email': self.email,
             'phone': self.telefono,
             'address': self.direccion,
+            'latitude': self.latitud,
+            'longitude': self.longitud,
             'opening_hours': self.horario,
             'currency': self.moneda,
             'currency_symbol': self.simbolo_moneda,

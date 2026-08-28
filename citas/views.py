@@ -10,6 +10,7 @@ from django.core.cache import cache
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password, make_password
@@ -502,7 +503,14 @@ def agendar_cita_view(request):
     ).only('nombre', 'raza')
     if not mascotas_usuario.exists():
         messages.info(request, "Primero registra a tu mascota para poder agendar una cita de peluquería.")
-        return redirect('nueva_mascota')
+        return redirect(f"{reverse('nueva_mascota')}?next=agendar")
+
+    mascota_id = request.GET.get('mascota_id')
+    mascota_preseleccionada = (
+        mascotas_usuario.filter(id=mascota_id).first()
+        if mascota_id and mascota_id.isdigit()
+        else None
+    )
 
     if request.method == 'POST':
         form = CitaForm(request.user, request.POST, negocio=negocio)
@@ -541,6 +549,8 @@ def agendar_cita_view(request):
         initial = {}
         if servicio_preseleccionado:
             initial['servicio'] = servicio_preseleccionado
+        if mascota_preseleccionada:
+            initial['mascota'] = mascota_preseleccionada
         form = CitaForm(request.user, initial=initial, negocio=negocio)
 
     context = {
@@ -1010,7 +1020,7 @@ def nueva_mascota_view(request):
             
             # If user came from booking flow, redirect back to agendar
             if request.GET.get('next') == 'agendar':
-                return redirect('agendar_cita')
+                return redirect(f"{reverse('agendar_cita')}?mascota_id={mascota.id}")
             return redirect('mis_mascotas')
     else:
         form = MascotaForm()

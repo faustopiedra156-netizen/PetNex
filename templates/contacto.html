@@ -47,6 +47,21 @@
                     </div>
                 </div>
             </div>
+
+            {% if business.latitude and business.longitude %}
+                <div class="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 sm:p-6">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <h2 class="font-headline font-bold text-slate-900">Encuéntranos</h2>
+                                <p class="text-sm text-slate-500 mt-1">{{ business.address }}</p>
+                            </div>
+                            <span class="material-symbols-outlined text-[#00685f] text-2xl">map</span>
+                        </div>
+                    </div>
+                    <div id="publicBusinessMap" class="h-72" data-lat="{{ business.latitude }}" data-lng="{{ business.longitude }}" aria-label="Mapa de ubicación del local"></div>
+                </div>
+            {% endif %}
         </section>
 
         <section class="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl">
@@ -88,4 +103,24 @@
         </section>
     </div>
 </div>
+{% if business.latitude and business.longitude %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3Hymp2mB4f8e5z4f6z1s4m0f5h4=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const element = document.getElementById('publicBusinessMap');
+            if (!element || typeof L === 'undefined') return;
+            const lat = Number.parseFloat(element.dataset.lat);
+            const lng = Number.parseFloat(element.dataset.lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+            const map = L.map(element, { scrollWheelZoom: false }).setView([lat, lng], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+            L.marker([lat, lng]).addTo(map).bindPopup('{{ business.name|escapejs }}').openPopup();
+            setTimeout(() => map.invalidateSize(), 100);
+        });
+    </script>
+{% endif %}
 {% endblock %}

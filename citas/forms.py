@@ -398,7 +398,7 @@ class ConfiguracionNegocioForm(forms.ModelForm):
         fields = [
             'nombre', 'nombre_corto', 'ciudad', 'pais', 'codigo_pais', 'categoria',
             'slogan', 'hero_badge', 'hero_titulo', 'hero_descripcion', 'contacto_titulo', 'contacto_descripcion', 'descripcion_footer',
-            'email', 'telefono', 'direccion', 'horario', 'moneda', 'simbolo_moneda',
+            'email', 'telefono', 'direccion', 'latitud', 'longitud', 'horario', 'moneda', 'simbolo_moneda',
             'etiqueta_resenas', 'etiqueta_ubicacion', 'texto_boton_principal',
             'prefijo_transaccion', 'mostrar_cuentas_demo', 'google_login_activo',
         ]
@@ -419,6 +419,8 @@ class ConfiguracionNegocioForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
             'telefono': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
             'direccion': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
+            'latitud': forms.HiddenInput(),
+            'longitud': forms.HiddenInput(),
             'horario': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
             'moneda': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
             'simbolo_moneda': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300'}),
