@@ -53,20 +53,20 @@
             <div id="plansGrid" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5">
                 {% for plan in planes %}
                     <article
-                        class="plan-card group rounded-3xl border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl cursor-pointer {% if forloop.counter == 2 %}bg-sky-50 border-sky-100{% elif suscripción and suscripción.plan_id == plan.id %}border-slate-300{% else %}border-slate-200{% endif %}"
+                        class="plan-card group rounded-3xl border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl cursor-pointer {% if forloop.counter == 2 %}bg-sky-50 border-sky-100{% elif suscripcion and suscripcion.plan_id == plan.id %}border-slate-300{% else %}border-slate-200{% endif %}"
                         data-plan-id="{{ plan.id }}"
                         data-plan-name="{{ plan.nombre }}"
-                        data-plan-price="{{ plan.precio_mensual }}"
+                        data-plan-price="{{ plan.precio_mensual|floatformat:2 }}"
                         data-plan-annual="{{ plan.precio_mensual|floatformat:2 }}"
                         data-plan-branches="{{ plan.max_sucursales }}"
                         data-plan-appointments="{{ plan.max_citas_mes }}"
-                        data-current="{% if suscripcion and suscripción.plan_id == plan.id %}true{% else %}false{% endif %}"
+                        data-current="{% if suscripcion and suscripcion.plan_id == plan.id %}true{% else %}false{% endif %}"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <p class="font-semibold text-sm text-slate-950">{{ plan.nombre }}</p>
                             {% if forloop.counter == 2 %}
                                 <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black uppercase">Recomendado</span>
-                            {% elif suscripción and suscripción.plan_id == plan.id %}
+                            {% elif suscripcion and suscripcion.plan_id == plan.id %}
                                 <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase">Actual</span>
                             {% endif %}
                         </div>
@@ -90,8 +90,8 @@
                         </div>
                         <p class="annual-caption hidden text-xs text-[#00685f] font-bold mt-2">Pago anual con 15% de descuento</p>
 
-                        <button type="button" class="select-plan mt-5 w-full rounded-full py-3 text-sm font-bold transition {% if suscripcion and suscripción.plan_id == plan.id %}border border-slate-200 text-slate-400 bg-white{% else %}bg-[#00685f] text-white hover:bg-teal-800{% endif %}">
-                            {% if suscripcion and suscripción.plan_id == plan.id %}Tu plan actual{% else %}Cambiar a {{ plan.nombre }}{% endif %}
+                        <button type="button" class="select-plan mt-5 w-full rounded-full py-3 text-sm font-bold transition {% if suscripcion and suscripcion.plan_id == plan.id %}border border-slate-200 text-slate-400 bg-white{% else %}bg-[#00685f] text-white hover:bg-teal-800{% endif %}">
+                            {% if suscripcion and suscripcion.plan_id == plan.id %}Tu plan actual{% else %}Cambiar a {{ plan.nombre }}{% endif %}
                         </button>
 
                         <ul class="mt-7 space-y-4 text-sm text-slate-700">
@@ -215,16 +215,22 @@
         const billingToggles = document.querySelectorAll('.billing-toggle');
         let billingCycle = 'monthly';
 
+        function numericPrice(value) {
+            const normalized = String(value ?? '').trim().replace(',', '.');
+            const parsed = Number.parseFloat(normalized);
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
         function money(value) {
-            return Number(value).toFixed(2);
+            return numericPrice(value).toFixed(2);
         }
 
         function annualPrice(monthly) {
-            return Number(monthly) * 12 * 0.85;
+            return numericPrice(monthly) * 12 * 0.85;
         }
 
         function priceForCycle(monthly) {
-            return billingCycle === 'annual' ? annualPrice(monthly) : Number(monthly);
+            return billingCycle === 'annual' ? annualPrice(monthly) : numericPrice(monthly);
         }
 
         function updatePlanCards() {
