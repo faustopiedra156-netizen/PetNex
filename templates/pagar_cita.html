@@ -47,7 +47,7 @@
                         Abrir simulaci&oacute;n de pago
                     </a>
                 {% elif tarjeta_configurada %}
-                    <form method="post" class="mt-5">
+                    <form method="post" class="mt-5" data-loading>
                         {% csrf_token %}
                         <input type="hidden" name="metodo_pago" value="TARJETA">
                         <button class="w-full py-3 rounded-xl bg-[#00685f] text-white font-headline font-bold hover:bg-teal-800">
@@ -77,7 +77,7 @@
                     <p class="rounded-xl bg-slate-50 p-3"><b>RUC/C&eacute;dula:</b> {{ transferencia.identificacion }}</p>
                 </div>
 
-                <form method="post" class="mt-5 flex flex-col sm:flex-row gap-3">
+                <form method="post" class="mt-5 flex flex-col sm:flex-row gap-3" data-loading>
                     {% csrf_token %}
                     <input type="hidden" name="metodo_pago" value="TRANSFERENCIA">
                     <input name="referencia_pago" required class="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f]" placeholder="N&uacute;mero de comprobante">
@@ -94,7 +94,7 @@
                     <span class="material-symbols-outlined text-[#00685f]">payments</span>
                 </div>
 
-                <form method="post" class="mt-5">
+                <form method="post" class="mt-5" data-loading>
                     {% csrf_token %}
                     <input type="hidden" name="metodo_pago" value="EFECTIVO">
                     <button class="w-full py-3 rounded-xl border border-slate-300 text-slate-800 font-headline font-bold hover:bg-slate-50">

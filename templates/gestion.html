@@ -287,7 +287,7 @@
                                     </form>
                                 </td>
                                 <td class="py-4 px-2 text-right">
-                                    <form method="post" action="{% url 'cambiar_estado_cita' cita.id %}" class="inline-flex items-center gap-1">
+                                    <form method="post" action="{% url 'cambiar_estado_cita' cita.id %}" class="inline-flex items-center gap-1" data-confirm="¿Deseas actualizar el estado de esta cita?">
                                         {% csrf_token %}
                                         {% if cita.estado == 'PENDIENTE' %}
                                             <button type="submit" name="nuevo_estado" value="CONFIRMADA" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition">

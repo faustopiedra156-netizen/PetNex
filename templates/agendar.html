@@ -32,7 +32,7 @@
             </div>
         </div>
 
-        <form id="agendaForm" method="post" class="p-6 sm:p-8 space-y-7" novalidate>
+        <form id="agendaForm" method="post" class="p-6 sm:p-8 space-y-7" data-loading novalidate>
             {% csrf_token %}
 
             {% if form.errors %}

@@ -61,6 +61,14 @@
         .soft-shadow {
             box-shadow: 0 10px 25px -5px rgba(0, 104, 95, 0.08), 0 8px 10px -6px rgba(0, 104, 95, 0.04);
         }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen text-slate-800 antialiased bg-[#f8f9ff]">
@@ -348,6 +356,26 @@
                 menuButton.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
             });
         })();
+
+        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!window.confirm(form.dataset.confirm)) {
+                    event.preventDefault();
+                }
+            });
+        });
+
+        document.querySelectorAll('form[data-loading]').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (event.defaultPrevented) return;
+                const submitButton = form.querySelector('button[type="submit"]:not([disabled])');
+                if (!submitButton) return;
+                submitButton.disabled = true;
+                submitButton.setAttribute('aria-busy', 'true');
+                submitButton.dataset.originalLabel = submitButton.textContent;
+                submitButton.textContent = 'Procesando...';
+            });
+        });
 
         (function () {
             const panel = document.getElementById('chatbotPanel');

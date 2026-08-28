@@ -121,7 +121,7 @@
             </button>
 
             <div class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-start">
-                <form method="post" action="{% url 'crear_pago_suscripcion' %}" class="space-y-5">
+                <form method="post" action="{% url 'crear_pago_suscripcion' %}" class="space-y-5" data-loading>
                     {% csrf_token %}
                     <input id="selectedPlanId" type="hidden" name="plan_id" value="">
                     <input id="selectedBillingCycle" type="hidden" name="ciclo_facturacion" value="MENSUAL">
