@@ -19,7 +19,7 @@
             <div class="mt-8 grid gap-3 text-sm">
                 <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
                     <span class="material-symbols-outlined text-teal-200">schedule</span>
-                    <span>Define hora de apertura y cierre por local.</span>
+                    <span>Define la hora de apertura y cierre por local.</span>
                 </div>
                 <div class="rounded-2xl bg-white/8 border border-white/10 p-4 flex gap-3">
                     <span class="material-symbols-outlined text-teal-200">timer</span>
@@ -98,7 +98,7 @@
                     <label class="block">
                         <span class="block text-xs font-bold text-slate-600 mb-2">{{ form.dias_cerrados.label }}</span>
                         {{ form.dias_cerrados }}
-                        <span class="block text-xs text-slate-500 mt-2">0=lunes, 1=martes, 2=miercoles, 3=jueves, 4=viernes, 5=sabado, 6=domingo. Ejemplo: <b>6</b> para cerrar domingo.</span>
+                        <span class="block text-xs text-slate-500 mt-2">0=lunes, 1=martes, 2=miércoles, 3=jueves, 4=viernes, 5=sábado, 6=domingo. Ejemplo: <b>6</b> para cerrar domingo.</span>
                         {% if form.dias_cerrados.errors %}<span class="text-xs text-red-600">{{ form.dias_cerrados.errors.0 }}</span>{% endif %}
                     </label>
                     <label class="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 self-end hover:border-teal-200 hover:bg-teal-50/30 transition">

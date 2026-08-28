@@ -123,9 +123,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Servicios del cat\u00e1logo registrados.'))
 
         mascota_1, _ = Mascota.objects.get_or_create(
+            negocio=negocio,
             propietario=cliente,
             nombre='Toby',
             defaults={
+                'negocio': negocio,
                 'especie': 'Canino',
                 'raza': 'Schnauzer Miniatura',
                 'edad': 3,
@@ -136,9 +138,11 @@ class Command(BaseCommand):
         )
 
         mascota_2, _ = Mascota.objects.get_or_create(
+            negocio=negocio,
             propietario=cliente,
             nombre='Luna',
             defaults={
+                'negocio': negocio,
                 'especie': 'Canino',
                 'raza': 'Golden Retriever',
                 'edad': 2,

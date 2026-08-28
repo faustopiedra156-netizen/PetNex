@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import (
     Mascota, PerfilCliente, Cita, Servicio, Calificacion, ConfiguracionNegocio,
-    Sucursal, SuscripcionNegocio, Negocio, MensajeContacto,
+    Sucursal, SuscripcionNegocio, Negocio, UsuarioNegocio, MensajeContacto,
 )
 import datetime
 
@@ -21,6 +21,26 @@ HORA_CIERRE = parse_hora_config(settings.APPOINTMENT_CLOSE_TIME, datetime.time(1
 SLOT_MINUTES = max(int(settings.APPOINTMENT_SLOT_MINUTES or 30), 1)
 MINUTOS_PERMITIDOS = set(range(0, 60, SLOT_MINUTES))
 DIAS_CERRADOS = set(settings.APPOINTMENT_CLOSED_WEEKDAYS)
+
+
+class EmailOrUsernameAuthenticationForm(AuthenticationForm):
+    error_messages = {
+        'invalid_login': 'Ingresa un usuario o correo electrónico y una contraseña válidos.',
+        'inactive': 'Esta cuenta está inactiva.',
+    }
+
+    def clean(self):
+        identifier = self.cleaned_data.get('username', '').strip()
+        if identifier:
+            matching_users = list(
+                User.objects.filter(
+                    email__iexact=identifier,
+                    is_active=True,
+                ).only('username')[:2]
+            )
+            if len(matching_users) == 1:
+                self.cleaned_data['username'] = matching_users[0].get_username()
+        return super().clean()
 
 
 def generar_horarios():
@@ -86,7 +106,7 @@ class CitaForm(forms.ModelForm):
             'sucursal': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition'}),
             'mascota': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition'}),
             'servicio': forms.Select(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition'}),
-            'fecha': forms.DateInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'type': 'date'}),
+            'fecha': forms.DateInput(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'type': 'date', 'lang': 'es'}),
             'hora': forms.HiddenInput(attrs={'id': 'id_hora'}),
             'notas': forms.Textarea(attrs={'class': 'w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#00685f] focus:border-transparent outline-none transition', 'rows': 2, 'placeholder': 'Requerimientos especiales para el baño o corte...'}),
         }
@@ -98,14 +118,31 @@ class CitaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()
         if user and user.is_authenticated:
-            self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).select_related('propietario').only('nombre', 'raza', 'propietario__username', 'propietario__first_name', 'propietario__last_name')
+            mascotas = Mascota.objects.filter(propietario=user)
+            if negocio:
+                mascotas = mascotas.filter(negocio=negocio)
+            else:
+                mascotas = mascotas.none()
+            self.fields['mascota'].queryset = mascotas.select_related('propietario').only(
+                'nombre', 'raza', 'negocio',
+                'propietario__username', 'propietario__first_name', 'propietario__last_name'
+            )
         sucursales = Sucursal.objects.filter(activa=True)
         servicios = Servicio.objects.filter(activo=True)
         if negocio:
             sucursales = sucursales.filter(negocio=negocio)
             servicios = servicios.filter(negocio=negocio)
-        self.fields['sucursal'].queryset = sucursales.only('nombre', 'ciudad', 'direccion')
-        self.fields['servicio'].queryset = servicios.only('nombre', 'precio')
+        self.fields['sucursal'].queryset = sucursales.only('nombre', 'ciudad', 'direccion', 'negocio')
+        self.fields['servicio'].queryset = servicios.only('nombre', 'precio', 'negocio')
+        self.fields['sucursal'].label = 'Sucursal'
+        self.fields['mascota'].label = 'Mascota'
+        self.fields['servicio'].label = 'Servicio solicitado'
+        self.fields['fecha'].label = 'Fecha de atenci\u00f3n'
+        self.fields['hora'].label = 'Hora preferida'
+        self.fields['notas'].label = 'Observaciones o notas adicionales'
+        self.fields['sucursal'].empty_label = 'Selecciona una sucursal'
+        self.fields['mascota'].empty_label = 'Selecciona una mascota'
+        self.fields['servicio'].empty_label = 'Selecciona un servicio'
         self.fields['sucursal'].error_messages['required'] = "Selecciona la sucursal donde se atender\u00e1 la mascota."
         self.fields['mascota'].error_messages['required'] = "Selecciona una mascota registrada."
         self.fields['servicio'].error_messages['required'] = "Selecciona el servicio que deseas reservar."
@@ -147,6 +184,15 @@ class CitaForm(forms.ModelForm):
         fecha = cleaned_data.get('fecha')
         hora = cleaned_data.get('hora')
         sucursal = cleaned_data.get('sucursal')
+        mascota = cleaned_data.get('mascota')
+        servicio = cleaned_data.get('servicio')
+        if self.negocio:
+            if mascota and mascota.negocio_id != self.negocio.id:
+                self.add_error('mascota', 'Selecciona una mascota registrada en este local.')
+            if sucursal and sucursal.negocio_id != self.negocio.id:
+                self.add_error('sucursal', 'Selecciona una sucursal de este local.')
+            if servicio and servicio.negocio_id != self.negocio.id:
+                self.add_error('servicio', 'Selecciona un servicio de este local.')
         if sucursal and fecha and hora:
             existe = Cita.objects.filter(sucursal=sucursal, fecha=fecha, hora=hora).exclude(estado='CANCELADA')
             if self.instance and self.instance.pk:
@@ -219,6 +265,11 @@ class AdminUsuarioForm(forms.ModelForm):
                     'telefono': self.cleaned_data.get('telefono', ''),
                     'direccion': self.cleaned_data.get('direccion', ''),
                 },
+            )
+            UsuarioNegocio.objects.get_or_create(
+                usuario=user,
+                negocio=negocio,
+                defaults={'rol': 'ADMIN_LOCAL'},
             )
         return user
 
@@ -313,6 +364,12 @@ class PerfilClienteForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
+        self.fields['contacto_preferido'].label = 'Medio de contacto preferido'
+        self.fields['contacto_preferido'].choices = [
+            ('whatsapp', 'WhatsApp'),
+            ('llamada', 'Llamada telefónica'),
+            ('email', 'Correo electrónico'),
+        ]
         self.fields['first_name'].initial = self.user.first_name
         self.fields['last_name'].initial = self.user.last_name
         self.fields['email'].initial = self.user.email
@@ -385,6 +442,16 @@ class SuscripcionNegocioForm(forms.ModelForm):
             'contacto_pago': forms.TextInput(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'placeholder': 'WhatsApp o correo para renovacion'}),
             'notas': forms.Textarea(attrs={'class': 'w-full px-3 py-2 rounded-xl border border-slate-300', 'rows': 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['plan'].label = 'Plan de suscripción'
+        self.fields['estado'].label = 'Estado de la suscripción'
+        self.fields['plan'].empty_label = 'Selecciona un plan'
+        self.fields['fecha_inicio'].label = 'Fecha de inicio'
+        self.fields['fecha_vencimiento'].label = 'Fecha de vencimiento'
+        self.fields['contacto_pago'].label = 'Contacto para pagos'
+        self.fields['notas'].label = 'Notas internas'
 
 
 class CalificacionForm(forms.ModelForm):

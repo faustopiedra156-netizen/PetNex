@@ -28,6 +28,46 @@ class Negocio(models.Model):
         return self.nombre
 
 
+class UsuarioNegocio(models.Model):
+    ROLES = [
+        ('ADMIN_LOCAL', 'Administrador del local'),
+        ('EMPLEADO', 'Empleado'),
+    ]
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='asignaciones_negocio',
+        verbose_name='Usuario',
+    )
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.CASCADE,
+        related_name='usuarios_asignados',
+        verbose_name='Negocio',
+    )
+    rol = models.CharField(max_length=20, choices=ROLES, default='ADMIN_LOCAL')
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Usuario del negocio'
+        verbose_name_plural = 'Usuarios de los negocios'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'negocio'],
+                name='usuario_negocio_unico',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['negocio', 'activo'], name='usuario_negocio_activo_idx'),
+            models.Index(fields=['usuario', 'activo'], name='usuario_negocio_usuario_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.usuario} - {self.negocio} ({self.get_rol_display()})'
+
+
 class PlanSuscripcion(models.Model):
     nombre = models.CharField(max_length=80, unique=True, verbose_name="Nombre del plan")
     precio_mensual = models.DecimalField(max_digits=7, decimal_places=2, default=0, verbose_name="Precio mensual")
@@ -331,6 +371,14 @@ class Sucursal(models.Model):
 
 
 class Mascota(models.Model):
+    negocio = models.ForeignKey(
+        Negocio,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='mascotas',
+        verbose_name="Negocio",
+    )
     propietario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mascotas', verbose_name="Due\u00f1o/Propietario")
     nombre = models.CharField(max_length=50, verbose_name="Nombre de la mascota")
     especie = models.CharField(max_length=30, default='Canino (Perro)', verbose_name="Especie")
@@ -352,6 +400,9 @@ class Mascota(models.Model):
         verbose_name = "Mascota"
         verbose_name_plural = "Mascotas"
         ordering = ['nombre']
+        indexes = [
+            models.Index(fields=['negocio', 'propietario'], name='mascota_negocio_prop_idx'),
+        ]
 
     def __str__(self):
         return f"{self.nombre} ({self.raza}) - Due\u00f1o: {self.propietario.get_full_name() or self.propietario.username}"

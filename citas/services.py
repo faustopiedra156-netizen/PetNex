@@ -6,7 +6,7 @@ from django.core.mail import send_mail
 from django.db import OperationalError, ProgrammingError
 from django.utils import timezone
 
-from .models import ConfiguracionNegocio, Negocio, SuscripcionNegocio
+from .models import ConfiguracionNegocio, Negocio, PerfilCliente, SuscripcionNegocio, UsuarioNegocio
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,62 @@ def obtener_negocio_usuario(user):
         return None
     if user.is_superuser:
         return None
+    asignacion = (
+        UsuarioNegocio.objects
+        .select_related('negocio')
+        .filter(usuario=user, activo=True, negocio__activo=True)
+        .order_by('id')
+        .first()
+    )
+    if asignacion:
+        return asignacion.negocio
+    if not user.is_staff:
+        return None
+    # Compatibility with administrators created before UsuarioNegocio existed.
     return Negocio.objects.filter(propietario=user, activo=True).first()
+
+
+def obtener_rol_usuario(user):
+    if not user or not getattr(user, 'is_authenticated', False):
+        return None
+    if hasattr(user, '_petnexo_rol_usuario'):
+        return user._petnexo_rol_usuario
+    if user.is_superuser:
+        rol = 'DUENO_PETNEXO'
+        user._petnexo_rol_usuario = rol
+        return rol
+    asignacion = (
+        UsuarioNegocio.objects
+        .filter(usuario=user, activo=True, negocio__activo=True)
+        .order_by('id')
+        .first()
+    )
+    if asignacion:
+        rol = asignacion.rol
+        user._petnexo_rol_usuario = rol
+        return rol
+    if not user.is_staff:
+        rol = 'CLIENTE'
+        user._petnexo_rol_usuario = rol
+        return rol
+    if Negocio.objects.filter(propietario=user, activo=True).exists():
+        rol = 'ADMIN_LOCAL'
+    else:
+        rol = None
+    user._petnexo_rol_usuario = rol
+    return rol
+
+
+def obtener_negocio_cliente(user):
+    if not user or not getattr(user, 'is_authenticated', False):
+        return None
+    perfil = (
+        PerfilCliente.objects
+        .select_related('negocio')
+        .filter(usuario=user, negocio__activo=True)
+        .first()
+    )
+    return perfil.negocio if perfil else None
 
 
 def obtener_negocio_publico():

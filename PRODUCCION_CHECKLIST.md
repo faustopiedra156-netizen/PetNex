@@ -58,22 +58,20 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ```
 
-## 4. Correo real con Resend
+## 4. Correo real
 
-Para recuperacion de contrasena, avisos y notificaciones mediante la API HTTPS de Resend:
+Para recuperacion de contrasena y avisos:
 
 ```env
-EMAIL_BACKEND=citas.email_backend.ResendEmailBackend
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
-RESEND_SENDER_EMAIL=notificaciones@tudominio.com
-RESEND_SENDER_NAME=PetNexo
-RESEND_TIMEOUT_SECONDS=10
-DEFAULT_FROM_EMAIL=notificaciones@tudominio.com
-ADMIN_NOTIFICATION_EMAIL=tu-correo@dominio.com
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=tu-correo@gmail.com
+EMAIL_HOST_PASSWORD=clave-de-aplicacion
+DEFAULT_FROM_EMAIL=PetNexo <tu-correo@gmail.com>
+ADMIN_NOTIFICATION_EMAIL=tu-correo@gmail.com
 ```
-
-Verifica el dominio o remitente en Resend antes de usarlo en produccion. No
-configures un backend SMTP en Render.
 
 ## 5. Pagos reales
 

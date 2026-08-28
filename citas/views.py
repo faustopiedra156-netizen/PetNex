@@ -25,7 +25,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio, CodigoRecuperacionContrasena
 from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm, SolicitarCodigoRecuperacionForm, VerificarCodigoRecuperacionForm, NuevaContrasenaRecuperacionForm, ContactoForm
-from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_publico, enviar_notificacion, estado_licencia
+from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_cliente, obtener_negocio_publico, obtener_rol_usuario, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
 PROGRESO_POR_ETAPA = {
@@ -95,11 +95,19 @@ def es_dueno_petnexo(user):
 
 
 def es_admin_local(user):
-    return user.is_authenticated and user.is_staff and not user.is_superuser
+    return obtener_rol_usuario(user) == 'ADMIN_LOCAL'
+
+
+def es_empleado_local(user):
+    return obtener_rol_usuario(user) == 'EMPLEADO'
+
+
+def es_personal_local(user):
+    return es_admin_local(user) or es_empleado_local(user)
 
 
 def es_cliente_final(user):
-    return user.is_authenticated and not user.is_staff and not user.is_superuser
+    return obtener_rol_usuario(user) == 'CLIENTE'
 
 
 def es_responsable_suscripcion(user):
@@ -112,6 +120,8 @@ def negocio_para_request(request):
 
     if request.user.is_authenticated:
         negocio = obtener_negocio_usuario(request.user)
+        if not negocio and es_cliente_final(request.user):
+            negocio = obtener_negocio_cliente(request.user)
         if negocio:
             request._petnexo_negocio_actual = negocio
             return negocio
@@ -128,11 +138,22 @@ def negocio_admin_o_redirect(request):
 
 
 def redirect_si_no_admin_local(request):
-    if es_admin_local(request.user):
+    if es_personal_local(request.user):
         return None
-    messages.error(request, "Esta accion corresponde al administrador del local.")
+    messages.error(request, "Esta accion corresponde al personal autorizado del local.")
     if request.user.is_superuser:
         return redirect('cuentas_admin')
+    return redirect('home')
+
+
+def redirect_si_no_admin_principal(request):
+    if es_admin_local(request.user):
+        return None
+    messages.error(request, "Esta accion corresponde al administrador principal del local.")
+    if request.user.is_superuser:
+        return redirect('cuentas_admin')
+    if es_personal_local(request.user):
+        return redirect('gestion_admin')
     return redirect('home')
 
 
@@ -476,7 +497,10 @@ def agendar_cita_view(request):
         servicio_preseleccionado = Servicio.objects.filter(negocio=negocio, id=servicio_id, activo=True).first()
 
     # Verify user has at least one pet registered
-    mascotas_usuario = Mascota.objects.filter(propietario=request.user).only('nombre', 'raza')
+    mascotas_usuario = Mascota.objects.filter(
+        propietario=request.user,
+        negocio=negocio,
+    ).only('nombre', 'raza')
     if not mascotas_usuario.exists():
         messages.info(request, "Primero registra a tu mascota para poder agendar una cita de peluquería.")
         return redirect('nueva_mascota')
@@ -533,7 +557,10 @@ def mis_citas_view(request):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
-    citas_queryset = Cita.objects.select_related('sucursal', 'mascota', 'servicio', 'calificacion').filter(propietario=request.user).order_by('-fecha', '-hora')
+    negocio = negocio_para_request(request)
+    citas_queryset = Cita.objects.select_related(
+        'sucursal', 'mascota', 'servicio', 'calificacion'
+    ).filter(propietario=request.user, negocio=negocio).order_by('-fecha', '-hora')
     citas = Paginator(citas_queryset, 20).get_page(request.GET.get('page'))
     context = {
         'citas': citas,
@@ -546,10 +573,12 @@ def calificar_cita_view(request, cita_id):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
+    negocio = negocio_para_request(request)
     cita = get_object_or_404(
         Cita.objects.select_related('mascota', 'servicio'),
         id=cita_id,
         propietario=request.user,
+        negocio=negocio,
     )
     if cita.estado != 'ATENDIDA':
         messages.error(request, "Solo puedes calificar una cita atendida.")
@@ -582,7 +611,8 @@ def cancelar_cita_view(request, cita_id):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
-    cita = get_object_or_404(Cita, id=cita_id, propietario=request.user)
+    negocio = negocio_para_request(request)
+    cita = get_object_or_404(Cita, id=cita_id, propietario=request.user, negocio=negocio)
     if request.POST.get('confirmacion', '').strip().upper() != 'CANCELAR':
         messages.error(request, "Para cancelar la cita debes escribir CANCELAR.")
         return redirect('mis_citas')
@@ -929,7 +959,8 @@ def mis_mascotas_view(request):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
-    mascotas = Mascota.objects.filter(propietario=request.user).only(
+    negocio = negocio_para_request(request)
+    mascotas = Mascota.objects.filter(propietario=request.user, negocio=negocio).only(
         'nombre', 'especie', 'raza', 'edad', 'peso_kg', 'notas_medicas', 'foto', 'foto_url'
     )
     context = {
@@ -943,7 +974,14 @@ def perfil_cliente_view(request):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
-    perfil, _ = PerfilCliente.objects.get_or_create(usuario=request.user)
+    negocio = negocio_para_request(request)
+    perfil, _ = PerfilCliente.objects.get_or_create(
+        usuario=request.user,
+        defaults={'negocio': negocio},
+    )
+    if not perfil.negocio_id and negocio:
+        perfil.negocio = negocio
+        perfil.save(update_fields=['negocio'])
     if request.method == 'POST':
         form = PerfilClienteForm(request.POST, instance=perfil, user=request.user)
         if form.is_valid():
@@ -967,6 +1005,7 @@ def nueva_mascota_view(request):
         if form.is_valid():
             mascota = form.save(commit=False)
             mascota.propietario = request.user
+            mascota.negocio = negocio
             mascota.save()
             messages.success(request, f"{mascota.nombre} fue registrado con exito en {obtener_configuracion_negocio(negocio)['name']}.")
             
@@ -989,7 +1028,8 @@ def editar_mascota_view(request, mascota_id):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
-    mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user)
+    negocio = negocio_para_request(request)
+    mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user, negocio=negocio)
     if request.method == 'POST':
         form = MascotaForm(request.POST, request.FILES, instance=mascota)
         if form.is_valid():
@@ -1013,7 +1053,8 @@ def eliminar_mascota_view(request, mascota_id):
     redirect_response = redirect_si_no_cliente_final(request)
     if redirect_response:
         return redirect_response
-    mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user)
+    negocio = negocio_para_request(request)
+    mascota = get_object_or_404(Mascota, id=mascota_id, propietario=request.user, negocio=negocio)
     nombre = mascota.nombre
     mascota.delete()
     messages.info(request, f"El registro de {nombre} fue eliminado.")
@@ -1026,8 +1067,8 @@ def gestion_admin_view(request):
     if request.user.is_superuser:
         messages.info(request, "La administracion del sistema se gestiona desde Cuentas y Django Admin.")
         return redirect('cuentas_admin')
-    if not es_admin_local(request.user):
-        messages.error(request, "Acceso restringido al administrador del local.")
+    if not es_personal_local(request.user):
+        messages.error(request, "Acceso restringido al personal autorizado del local.")
         return redirect('home')
     negocio, redirect_response = negocio_admin_o_redirect(request)
     if redirect_response:
@@ -1050,19 +1091,23 @@ def gestion_admin_view(request):
     hoy = timezone.localdate()
     inicio_mes = hoy.replace(day=1)
     
-    resumen = Cita.objects.filter(negocio=negocio).aggregate(
-        total=Count('id'),
-        pendientes=Count('id', filter=Q(estado='PENDIENTE')),
-        confirmadas=Count('id', filter=Q(estado='CONFIRMADA')),
-        atendidas=Count('id', filter=Q(estado='ATENDIDA')),
-        hoy=Count('id', filter=Q(fecha=hoy)),
-        pagos_pendientes=Count('id', filter=Q(estado_pago__in=['PENDIENTE', 'ABONADO'])),
-        ingresos=Sum('precio_acordado', filter=Q(estado='ATENDIDA')),
-        ingresos_mes=Sum(
-            'precio_acordado',
-            filter=Q(estado='ATENDIDA', fecha__gte=inicio_mes),
-        ),
-    )
+    resumen_campos = {
+        'total': Count('id'),
+        'pendientes': Count('id', filter=Q(estado='PENDIENTE')),
+        'confirmadas': Count('id', filter=Q(estado='CONFIRMADA')),
+        'atendidas': Count('id', filter=Q(estado='ATENDIDA')),
+        'hoy': Count('id', filter=Q(fecha=hoy)),
+    }
+    if es_admin_local(request.user):
+        resumen_campos.update({
+            'pagos_pendientes': Count('id', filter=Q(estado_pago__in=['PENDIENTE', 'ABONADO'])),
+            'ingresos': Sum('precio_acordado', filter=Q(estado='ATENDIDA')),
+            'ingresos_mes': Sum(
+                'precio_acordado',
+                filter=Q(estado='ATENDIDA', fecha__gte=inicio_mes),
+            ),
+        })
+    resumen = Cita.objects.filter(negocio=negocio).aggregate(**resumen_campos)
     promedio_calificacion = Calificacion.objects.filter(cita__negocio=negocio).aggregate(promedio=Avg('puntuacion'))['promedio'] or 0
     citas_hoy = Cita.objects.select_related('sucursal', 'propietario', 'mascota', 'servicio').filter(negocio=negocio, fecha=hoy).order_by('sucursal__nombre', 'hora')[:settings.ADMIN_TODAY_APPOINTMENTS_LIMIT]
     licencia = estado_licencia(negocio)
@@ -1079,9 +1124,9 @@ def gestion_admin_view(request):
         'confirmadas': resumen['confirmadas'],
         'atendidas': resumen['atendidas'],
         'citas_de_hoy': resumen['hoy'],
-        'pagos_pendientes': resumen['pagos_pendientes'],
-        'ingresos': resumen['ingresos'] or 0,
-        'ingresos_mes': resumen['ingresos_mes'] or 0,
+        'pagos_pendientes': resumen.get('pagos_pendientes', 0),
+        'ingresos': resumen.get('ingresos') or 0,
+        'ingresos_mes': resumen.get('ingresos_mes') or 0,
         'promedio_calificacion': round(promedio_calificacion, 1),
         'licencia_actual': licencia,
     }
@@ -1090,7 +1135,7 @@ def gestion_admin_view(request):
 
 @login_required
 def configuracion_negocio_view(request):
-    redirect_response = redirect_si_no_admin_local(request)
+    redirect_response = redirect_si_no_admin_principal(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1445,7 +1490,7 @@ def cambiar_estado_cita_view(request, cita_id):
 @login_required
 @require_POST
 def actualizar_pago_cita_view(request, cita_id):
-    redirect_response = redirect_si_no_admin_local(request)
+    redirect_response = redirect_si_no_admin_principal(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1523,7 +1568,7 @@ def actualizar_seguimiento_cita_view(request, cita_id):
 
 @login_required
 def servicio_form_view(request, servicio_id=None):
-    redirect_response = redirect_si_no_admin_local(request)
+    redirect_response = redirect_si_no_admin_principal(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1555,7 +1600,7 @@ def servicio_form_view(request, servicio_id=None):
 @login_required
 @require_POST
 def toggle_servicio_view(request, servicio_id):
-    redirect_response = redirect_si_no_admin_local(request)
+    redirect_response = redirect_si_no_admin_principal(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1574,7 +1619,7 @@ def toggle_servicio_view(request, servicio_id):
 
 @login_required
 def sucursal_form_view(request, sucursal_id=None):
-    redirect_response = redirect_si_no_admin_local(request)
+    redirect_response = redirect_si_no_admin_principal(request)
     if redirect_response:
         return redirect_response
     negocio, redirect_response = negocio_admin_o_redirect(request)
@@ -1658,7 +1703,7 @@ def login_usuario_view(request):
                     next_page = 'home'
                 if next_page == 'home' and user.is_superuser:
                     return redirect('cuentas_admin')
-                if next_page == 'home' and es_admin_local(user):
+                if next_page == 'home' and es_personal_local(user):
                     return redirect('gestion_admin')
                 return redirect(next_page)
         else:

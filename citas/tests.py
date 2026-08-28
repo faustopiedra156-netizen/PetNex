@@ -15,10 +15,12 @@ from .models import (
     CodigoRecuperacionContrasena,
     Mascota,
     Negocio,
+    PerfilCliente,
     PlanSuscripcion,
     Servicio,
     Sucursal,
     SuscripcionNegocio,
+    UsuarioNegocio,
 )
 from .services import enviar_notificacion
 
@@ -133,6 +135,7 @@ class PagoSimuladoTests(TestCase):
             nombre='Local de pruebas',
             propietario=self.user,
         )
+        PerfilCliente.objects.create(usuario=self.user, negocio=self.negocio)
         self.plan = PlanSuscripcion.objects.create(
             nombre='Plan sin pagos para pruebas',
             precio_mensual=Decimal('0.00'),
@@ -157,6 +160,7 @@ class PagoSimuladoTests(TestCase):
             precio=Decimal('25.00'),
         )
         self.mascota = Mascota.objects.create(
+            negocio=self.negocio,
             propietario=self.user,
             nombre='Luna',
             raza='Mestiza',
@@ -231,6 +235,34 @@ class PagoSimuladoTests(TestCase):
         self.assertEqual(self.cita.estado_pago, 'PENDIENTE')
         self.assertEqual(self.cita.referencia_pago, '')
 
+    def test_agenda_no_muestra_mascotas_de_otro_negocio(self):
+        otro_negocio = Negocio.objects.create(nombre='Otro local')
+        Mascota.objects.create(
+            negocio=otro_negocio,
+            propietario=self.user,
+            nombre='Mascota de otro local',
+            raza='Mestiza',
+        )
+
+        response = self.client.get(reverse('agendar_cita'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.mascota.nombre)
+        self.assertNotContains(response, 'Mascota de otro local')
+
+    def test_mascota_de_otro_negocio_no_se_puede_editar(self):
+        otro_negocio = Negocio.objects.create(nombre='Otro local')
+        mascota_ajena = Mascota.objects.create(
+            negocio=otro_negocio,
+            propietario=self.user,
+            nombre='Mascota protegida',
+            raza='Mestiza',
+        )
+
+        response = self.client.get(reverse('editar_mascota', args=[mascota_ajena.id]))
+
+        self.assertEqual(response.status_code, 404)
+
     @override_settings(SIMULATE_PAYMENTS=False)
     def test_desactivado_conserva_el_flujo_datafast(self):
         self.plan.permite_pagos = True
@@ -304,3 +336,85 @@ class RoleAccessTests(TestCase):
 
         response = self.client.get(reverse('mis_citas'))
         self.assertRedirects(response, reverse('gestion_admin'))
+
+    def test_empleado_puede_operar_sin_administrar_configuracion_ni_pagos(self):
+        empleado = get_user_model().objects.create_user(
+            username='empleado_local',
+            password='clave-segura-empleado',
+            is_staff=True,
+        )
+        UsuarioNegocio.objects.create(
+            usuario=empleado,
+            negocio=self.negocio,
+            rol='EMPLEADO',
+        )
+        self.client.force_login(empleado)
+
+        response = self.client.get(reverse('gestion_admin'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Personal del local')
+        self.assertNotContains(response, 'Configurar Local')
+        self.assertNotContains(response, 'Suscrip')
+        self.assertNotContains(response, 'Nueva sucursal')
+        self.assertNotContains(response, 'Editar sucursal')
+        self.assertNotContains(response, 'name="estado_pago"')
+        self.assertNotContains(response, 'name="metodo_pago"')
+
+        response = self.client.get(reverse('configuracion_negocio'))
+        self.assertRedirects(response, reverse('gestion_admin'))
+        response = self.client.get(reverse('suscripcion_negocio'))
+        self.assertRedirects(response, reverse('gestion_admin'))
+        response = self.client.post(
+            reverse('actualizar_pago_cita', args=[999999]),
+            {'estado_pago': 'PAGADO', 'metodo_pago': 'EFECTIVO'},
+        )
+        self.assertRedirects(response, reverse('gestion_admin'))
+
+
+class MultiNegocioIsolationTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.cliente = user_model.objects.create_user(
+            username='cliente_multi_local',
+            email='cliente-multi@example.com',
+            password='clave-segura-cliente',
+        )
+        administrador_1 = user_model.objects.create_user(
+            username='admin_local_uno',
+            password='clave-segura-admin',
+            is_staff=True,
+        )
+        administrador_2 = user_model.objects.create_user(
+            username='admin_local_dos',
+            password='clave-segura-admin',
+            is_staff=True,
+        )
+        self.negocio_1 = Negocio.objects.create(
+            nombre='Local Uno',
+            propietario=administrador_1,
+        )
+        self.negocio_2 = Negocio.objects.create(
+            nombre='Local Dos',
+            propietario=administrador_2,
+        )
+        PerfilCliente.objects.create(usuario=self.cliente, negocio=self.negocio_1)
+        Mascota.objects.create(
+            negocio=self.negocio_1,
+            propietario=self.cliente,
+            nombre='Mascota visible',
+            raza='Mestiza',
+        )
+        Mascota.objects.create(
+            negocio=self.negocio_2,
+            propietario=self.cliente,
+            nombre='Mascota aislada',
+            raza='Mestiza',
+        )
+        self.client.force_login(self.cliente)
+
+    def test_cliente_solo_ve_mascotas_de_su_negocio_principal(self):
+        response = self.client.get(reverse('mis_mascotas'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Mascota visible')
+        self.assertNotContains(response, 'Mascota aislada')

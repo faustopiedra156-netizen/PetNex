@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Negocio, Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
+    Negocio, UsuarioNegocio, Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio,
     Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, CodigoRecuperacionContrasena, MensajeContacto,
 )
 
@@ -10,6 +10,13 @@ class NegocioAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'propietario', 'activo', 'creado_en')
     list_filter = ('activo',)
     search_fields = ('nombre', 'propietario__username', 'propietario__email')
+
+
+@admin.register(UsuarioNegocio)
+class UsuarioNegocioAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'negocio', 'rol', 'activo', 'creado_en')
+    list_filter = ('rol', 'activo', 'negocio')
+    search_fields = ('usuario__username', 'usuario__email', 'negocio__nombre')
 
 
 @admin.register(PlanSuscripcion)
@@ -60,9 +67,9 @@ class SucursalAdmin(admin.ModelAdmin):
 
 @admin.register(Mascota)
 class MascotaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'especie', 'raza', 'propietario', 'edad', 'peso_kg')
-    list_filter = ('especie', 'raza')
-    search_fields = ('nombre', 'raza', 'propietario__username', 'propietario__first_name')
+    list_display = ('nombre', 'negocio', 'especie', 'raza', 'propietario', 'edad', 'peso_kg')
+    list_filter = ('negocio', 'especie', 'raza')
+    search_fields = ('nombre', 'raza', 'negocio__nombre', 'propietario__username', 'propietario__first_name')
 
 
 @admin.register(Cita)

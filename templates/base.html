@@ -80,11 +80,11 @@
                     <a href="{% url 'home' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Inicio</a>
                     <a href="{% url 'servicios' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Servicios</a>
                     <a href="{% url 'contacto' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Contacto</a>
-                    {% if not user.is_authenticated or not user.is_staff %}
+                    {% if rol_actual == 'CLIENTE' %}
                         <a href="{% url 'agendar_cita' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Agendar Cita</a>
                     {% endif %}
                     {% if user.is_authenticated %}
-                        {% if not user.is_staff %}
+                        {% if rol_actual == 'CLIENTE' %}
                             <a href="{% url 'perfil_cliente' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Mi Perfil</a>
                             <a href="{% url 'mis_citas' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Mis Citas</a>
                             <a href="{% url 'mis_mascotas' %}" class="px-4 py-2 rounded-xl transition hover:text-[#00685f] hover:bg-teal-50">Mis Mascotas</a>
@@ -93,13 +93,15 @@
                             <a href="{% url 'cuentas_admin' %}" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold border border-slate-800 text-xs flex items-center gap-1 hover:bg-slate-800 transition">
                                 <span class="material-symbols-outlined text-sm">admin_panel_settings</span> Administración del sistema
                             </a>
-                        {% elif user.is_staff %}
+                        {% elif rol_actual == 'ADMIN_LOCAL' or rol_actual == 'EMPLEADO' %}
                             <a href="{% url 'gestion_admin' %}" class="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 font-semibold border border-amber-200 text-xs flex items-center gap-1 hover:bg-amber-100 transition">
                                 <span class="material-symbols-outlined text-sm">dashboard</span> Panel Admin
                             </a>
+                            {% if rol_actual == 'ADMIN_LOCAL' %}
                             <a href="{% url 'suscripcion_negocio' %}" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold text-xs flex items-center gap-1 hover:bg-slate-800 transition">
                                 <span class="material-symbols-outlined text-sm">workspace_premium</span> Suscripción
                             </a>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                 </nav>
@@ -114,8 +116,10 @@
                             <span>{{ user.first_name|default:user.username }}</span>
                             {% if user.is_superuser %}
                                 <span class="px-2 py-0.5 rounded-full bg-slate-900 text-white font-black">PetNexo</span>
-                            {% elif user.is_staff %}
+                            {% elif rol_actual == 'ADMIN_LOCAL' %}
                                 <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black">Admin local</span>
+                            {% elif rol_actual == 'EMPLEADO' %}
+                                <span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-black">Empleado</span>
                             {% else %}
                                 <span class="px-2 py-0.5 rounded-full bg-white text-[#00685f] font-black">Cliente</span>
                             {% endif %}
@@ -141,20 +145,22 @@
             <a href="{% url 'home' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Inicio</a>
             <a href="{% url 'servicios' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Servicios</a>
             <a href="{% url 'contacto' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Contacto</a>
-            {% if not user.is_authenticated or not user.is_staff %}
+            {% if rol_actual == 'CLIENTE' %}
                 <a href="{% url 'agendar_cita' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Agendar Cita</a>
             {% endif %}
             {% if user.is_authenticated %}
-                {% if not user.is_staff %}
+                {% if rol_actual == 'CLIENTE' %}
                     <a href="{% url 'perfil_cliente' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Mi Perfil</a>
                     <a href="{% url 'mis_citas' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Mis Citas</a>
                     <a href="{% url 'mis_mascotas' %}" class="block px-3 py-2 rounded-xl font-medium text-slate-700 hover:bg-teal-50">Mis Mascotas</a>
                 {% endif %}
                 {% if user.is_superuser %}
                     <a href="{% url 'cuentas_admin' %}" class="block px-3 py-2 rounded-xl font-semibold text-white bg-slate-900">Administración del sistema</a>
-                {% elif user.is_staff %}
+                {% elif rol_actual == 'ADMIN_LOCAL' or rol_actual == 'EMPLEADO' %}
                     <a href="{% url 'gestion_admin' %}" class="block px-3 py-2 rounded-xl font-semibold text-amber-800 bg-amber-50">Panel Administración</a>
-                    <a href="{% url 'suscripcion_negocio' %}" class="block px-3 py-2 rounded-xl font-semibold text-slate-800 bg-slate-100">Suscripción</a>
+                    {% if rol_actual == 'ADMIN_LOCAL' %}
+                        <a href="{% url 'suscripcion_negocio' %}" class="block px-3 py-2 rounded-xl font-semibold text-slate-800 bg-slate-100">Suscripción</a>
+                    {% endif %}
                 {% endif %}
                 <a href="{% url 'logout' %}" class="block px-3 py-2 rounded-xl font-medium text-red-600 hover:bg-red-50">Cerrar Sesión</a>
             {% else %}
@@ -228,8 +234,12 @@
                     <ul class="space-y-2 text-sm text-slate-400">
                         <li><a href="{% url 'home' %}" class="hover:text-teal-400 transition">Inicio</a></li>
                         <li><a href="{% url 'servicios' %}" class="hover:text-teal-400 transition">Catálogo de Servicios</a></li>
-                        <li><a href="{% url 'agendar_cita' %}" class="hover:text-teal-400 transition">Reservar Cita</a></li>
-                        <li><a href="{% url 'mis_citas' %}" class="hover:text-teal-400 transition">Consultar mis Citas</a></li>
+                        {% if rol_actual == 'CLIENTE' %}
+                            <li><a href="{% url 'agendar_cita' %}" class="hover:text-teal-400 transition">Reservar Cita</a></li>
+                            <li><a href="{% url 'mis_citas' %}" class="hover:text-teal-400 transition">Consultar mis Citas</a></li>
+                        {% else %}
+                            <li><a href="{% url 'login' %}" class="hover:text-teal-400 transition">Iniciar sesión para reservar</a></li>
+                        {% endif %}
                         <li><a href="{% url 'soporte' %}" class="hover:text-teal-400 transition">Soporte</a></li>
                     </ul>
                 </div>
