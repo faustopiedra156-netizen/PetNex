@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Cuentas del sistema - {{ business.name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,7 +12,7 @@
                 Dueño PetNexo
             </span>
             <h1 class="font-headline font-black text-3xl text-slate-900 mt-3">Cuentas del sistema</h1>
-            <p class="text-sm text-slate-500">Crea administradores para cada local. Los clientes finales se registran solos desde la página publica o con Google.</p>
+            <p class="text-sm text-slate-500">Crea administradores para cada local. Los clientes finales se registran solos desde la página pública o con Google.</p>
         </div>
         <a href="{% url 'admin:index' %}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50">
             Django Admin
@@ -117,7 +118,7 @@
                             <div class="flex items-center gap-2">
                                 <span class="px-3 py-1 rounded-full bg-white text-slate-900 text-xs font-black">PetNexo</span>
                                 {% if usuario.id != request.user.id %}
-                                    <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" onsubmit="return confirm('Seguro que deseas eliminar esta cuenta de PetNexo? Esta accion no se puede deshacer.');">
+                                    <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" data-confirm="¿Seguro que deseas eliminar esta cuenta de PetNexo? Esta acción no se puede deshacer." data-loading>
                                         {% csrf_token %}
                                         <button type="submit" class="w-9 h-9 rounded-full bg-red-500/15 text-red-200 hover:bg-red-500 hover:text-white transition flex items-center justify-center" aria-label="Eliminar cuenta">
                                             <span class="material-symbols-outlined text-lg">delete</span>
@@ -148,7 +149,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black">Admin local</span>
-                                <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" onsubmit="return confirm('Seguro que deseas eliminar este administrador local? Tambien se eliminaran sus datos asociados.');">
+                                <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" data-confirm="¿Seguro que deseas eliminar este administrador local? También se eliminarán sus datos asociados." data-loading>
                                     {% csrf_token %}
                                     <button type="submit" class="w-9 h-9 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition flex items-center justify-center" aria-label="Eliminar cuenta">
                                         <span class="material-symbols-outlined text-lg">delete</span>
@@ -174,7 +175,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="px-3 py-1 rounded-full bg-teal-50 text-[#00685f] text-xs font-black">Cliente</span>
-                                <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" onsubmit="return confirm('Seguro que deseas eliminar este cliente? Se eliminará también su información asociada.');">
+                                <form method="post" action="{% url 'eliminar_cuenta_sistema' usuario.id %}" data-confirm="¿Seguro que deseas eliminar este cliente? Se eliminará también su información asociada." data-loading>
                                     {% csrf_token %}
                                     <button type="submit" class="w-9 h-9 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition flex items-center justify-center" aria-label="Eliminar cuenta">
                                         <span class="material-symbols-outlined text-lg">delete</span>

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Panel de Gestión Administrador - {{ business.name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div class="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -287,7 +288,7 @@
                                     </form>
                                 </td>
                                 <td class="py-4 px-2 text-right">
-                                    <form method="post" action="{% url 'cambiar_estado_cita' cita.id %}" class="inline-flex items-center gap-1" data-confirm="¿Deseas actualizar el estado de esta cita?">
+                                    <form method="post" action="{% url 'cambiar_estado_cita' cita.id %}" class="inline-flex items-center gap-1" data-confirm="¿Deseas actualizar el estado de esta cita?" data-loading>
                                         {% csrf_token %}
                                         {% if cita.estado == 'PENDIENTE' %}
                                             <button type="submit" name="nuevo_estado" value="CONFIRMADA" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition">
@@ -345,7 +346,7 @@
                             <p class="text-xs text-slate-500">{{ business.currency_symbol }}{{ s.precio }} - {{ s.duracion_minutos }} min</p>
                         </div>
 
-                        <form method="post" action="{% url 'toggle_servicio' s.id %}">
+                        <form method="post" action="{% url 'toggle_servicio' s.id %}" data-confirm="¿Deseas cambiar la disponibilidad de este servicio?" data-loading>
                             {% csrf_token %}
                             <button type="submit" class="px-3 py-1.5 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
                                 {% if s.activo %}Activo{% else %}Inactivo{% endif %}
@@ -382,7 +383,7 @@
                             <a href="{% url 'editar_servicio' s.id %}" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-center font-bold text-xs hover:bg-slate-800">
                                 Editar servicio
                             </a>
-                            <form method="post" action="{% url 'toggle_servicio' s.id %}">
+                            <form method="post" action="{% url 'toggle_servicio' s.id %}" data-confirm="¿Deseas cambiar la disponibilidad de este servicio?" data-loading>
                                 {% csrf_token %}
                                 <button type="submit" class="px-3 py-2 rounded-xl font-bold text-xs transition {% if s.activo %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
                                     {% if s.activo %}Activo{% else %}Inactivo{% endif %}

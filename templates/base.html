@@ -326,7 +326,7 @@
             <div class="px-4 py-3 border-t border-slate-200 bg-white">
                 <div class="flex flex-wrap gap-2 mb-3">
                     <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="Que servicios tienen?">Servicios</button>
-                    <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="Como agendo una cita?">Agendar</button>
+                    <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="¿Cómo agendo una cita?">Agendar</button>
                     <button type="button" class="chatbotQuick px-2.5 py-1.5 rounded-full bg-teal-50 text-[#00685f] text-xs font-semibold" data-message="¿Cómo veo el seguimiento de mi mascota?">Seguimiento</button>
                 </div>
                 <form id="chatbotForm" class="flex items-center gap-2">
@@ -368,7 +368,7 @@
         document.querySelectorAll('form[data-loading]').forEach(function (form) {
             form.addEventListener('submit', function (event) {
                 if (event.defaultPrevented) return;
-                const submitButton = form.querySelector('button[type="submit"]:not([disabled])');
+                const submitButton = event.submitter || form.querySelector('button[type="submit"]:not([disabled])');
                 if (!submitButton) return;
                 submitButton.disabled = true;
                 submitButton.setAttribute('aria-busy', 'true');

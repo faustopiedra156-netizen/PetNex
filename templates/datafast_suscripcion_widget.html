@@ -1,13 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}Pago de Suscripcion - PetNexo{% endblock %}
+{% block title %}Pago de Suscripción - PetNexo{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-3xl mx-auto px-4 sm:px-6">
     <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xl">
         <div class="mb-6">
             <p class="text-xs font-black uppercase tracking-wider text-[#00685f]">Pago seguro PetNexo</p>
-            <h1 class="font-headline font-black text-2xl text-slate-900 mt-1">Suscripcion {{ pago.plan.nombre }}</h1>
+            <h1 class="font-headline font-black text-2xl text-slate-900 mt-1">Suscripción {{ pago.plan.nombre }}</h1>
             <p class="text-sm text-slate-500 mt-1">
                 Ciclo: <b>{{ pago.get_ciclo_facturacion_display }}</b> · Total:
                 <b>{{ business.currency_symbol }}{{ pago.monto }}</b>

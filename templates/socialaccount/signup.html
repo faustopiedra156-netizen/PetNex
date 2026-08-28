@@ -2,6 +2,7 @@
 {% load account %}
 
 {% block title %}Completar Registro - {{ business.name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div class="min-h-[calc(100vh-5rem)] flex items-center justify-center px-4 py-12">
@@ -17,7 +18,7 @@
             </p>
         </div>
 
-        <form method="post" action="{% url 'socialaccount_signup' %}" class="space-y-5">
+        <form method="post" action="{% url 'socialaccount_signup' %}" class="space-y-5" data-loading>
             {% csrf_token %}
 
             {% if form.non_field_errors %}

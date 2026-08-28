@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Simulaci&oacute;n de pago - {{ business.name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div class="py-12 max-w-4xl mx-auto px-4 sm:px-6">
@@ -38,7 +39,7 @@
             <h2 class="font-headline font-black text-xl text-slate-900">Resultado de la simulaci&oacute;n</h2>
             <p class="mt-2 text-sm leading-6 text-slate-500">No ingreses n&uacute;meros de tarjeta, CVV, fechas ni cuentas bancarias.</p>
 
-            <form method="post" class="mt-6 space-y-3">
+            <form method="post" class="mt-6 space-y-3" data-loading>
                 {% csrf_token %}
                 <button type="submit" name="accion" value="aprobar" class="w-full rounded-xl bg-[#00685f] px-4 py-3 text-white font-headline font-bold hover:bg-teal-800 transition">
                     <span class="material-symbols-outlined align-middle text-base mr-1">check_circle</span>
