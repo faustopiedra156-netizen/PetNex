@@ -1,5 +1,27 @@
-/* Custom Styles for PetCare Loja Django App */
+/* Local styles shared by the Django templates. */
+body { font-family: 'Inter', sans-serif; }
+h1, h2, h3, h4, h5, h6, .font-headline { font-family: 'Montserrat', sans-serif; }
+
 .glass-panel {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.soft-shadow {
+    box-shadow: 0 10px 25px -5px rgba(0, 104, 95, 0.08), 0 8px 10px -6px rgba(0, 104, 95, 0.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }
