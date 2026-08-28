@@ -1,5 +1,3 @@
-import os
-
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
@@ -23,5 +21,5 @@ urlpatterns = [
 ]
 
 # Media local para desarrollo. En producción debe usarse almacenamiento de objetos.
-if not os.getenv('RENDER'):
+if not settings.IS_RENDER:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

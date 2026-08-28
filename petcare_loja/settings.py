@@ -50,6 +50,16 @@ def env_int_list(name, default=''):
     return values
 
 
+def env_float(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def env_json(name, default):
     raw = os.getenv(name)
     if not raw:
@@ -62,6 +72,7 @@ def env_json(name, default):
 
 
 DEBUG = env_bool('DEBUG', False)
+IS_RENDER = env_bool('RENDER', False)
 SECRET_KEY = os.getenv('SECRET_KEY', os.getenv('DJANGO_SECRET_KEY', ''))
 APP_NAME = os.getenv('APP_NAME', 'PetNexo')
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'citas.exception_filters.PetNexoExceptionReporterFilter'
@@ -80,7 +91,7 @@ CSRF_TRUSTED_ORIGINS = env_list(
     'http://127.0.0.1:8081,http://localhost:8081,http://127.0.0.1:8080,http://localhost:8080',
 )
 
-if os.getenv('VERCEL'):
+if env_bool('VERCEL', False):
     vercel_url = os.getenv('VERCEL_URL', '').strip()
     ALLOWED_HOSTS.extend(['.vercel.app'])
     CSRF_TRUSTED_ORIGINS.extend(['https://*.vercel.app'])
@@ -247,7 +258,7 @@ if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         send_default_pii=False,
-        traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.05')),
+        traces_sample_rate=min(max(env_float('SENTRY_TRACES_SAMPLE_RATE', 0.05), 0), 1),
     )
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -448,18 +459,22 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', BUSINESS_CONTACT_EMAIL)
 ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', BUSINESS_CONTACT_EMAIL)
 
-if os.getenv('RENDER') and EMAIL_BACKEND.endswith('console.EmailBackend'):
+if IS_RENDER and EMAIL_BACKEND.endswith('console.EmailBackend'):
     raise ImproperlyConfigured('Configura un proveedor SMTP o transaccional para enviar correos en produccion.')
 if EMAIL_BACKEND == 'citas.email_backend.BrevoEmailBackend' and (not BREVO_API_KEY or not BREVO_SENDER_EMAIL):
     raise ImproperlyConfigured('Configura BREVO_API_KEY y BREVO_SENDER_EMAIL para usar Brevo.')
 
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
 TRUST_X_FORWARDED_FOR = env_bool('TRUST_X_FORWARDED_FOR', False)
+DATA_UPLOAD_MAX_MEMORY_SIZE = env_int('DATA_UPLOAD_MAX_MEMORY_SIZE', 5 * 1024 * 1024)
+FILE_UPLOAD_MAX_MEMORY_SIZE = env_int('FILE_UPLOAD_MAX_MEMORY_SIZE', 5 * 1024 * 1024)
 
 LOGGING = {
     'version': 1,
@@ -473,9 +488,9 @@ LOGGING = {
 }
 
 if not DEBUG:
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', bool(os.getenv('RENDER')))
-    SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 31536000 if os.getenv('RENDER') else 0)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', IS_RENDER)
+    CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', IS_RENDER)
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', IS_RENDER)
+    SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 31536000 if IS_RENDER else 0)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', IS_RENDER)
+    SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', IS_RENDER)

@@ -6,12 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ business.app_name }} - {{ business.tagline }}{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}{{ business.tagline }} en {{ business.city }}. Reserva servicios, consulta horarios y revisa el seguimiento de tu mascota.{% endblock %}">
+    <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_EC">
     <meta property="og:site_name" content="{{ business.app_name }}">
     <meta property="og:title" content="{% block og_title %}{{ business.name }} - {{ business.tagline }}{% endblock %}">
     <meta property="og:description" content="{{ business.tagline }} en {{ business.city }}.">
     <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ business.name }} - {{ business.tagline }}{% endblock %}">
+    <meta name="twitter:description" content="{{ business.tagline }} en {{ business.city }}.">
     <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
     <link rel="shortcut icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
     <meta name="theme-color" content="#00685f">
@@ -133,7 +138,7 @@
                     {% endif %}
 
                     <!-- Mobile Menu Button -->
-                    <button id="mobileMenuBtn" class="md:hidden p-2 text-slate-600 hover:text-[#00685f] rounded-xl focus:outline-none">
+                    <button id="mobileMenuBtn" type="button" aria-expanded="false" aria-controls="mobileMenu" aria-label="Abrir menú" class="md:hidden p-2 text-slate-600 hover:text-[#00685f] rounded-xl focus:outline-none">
                         <span class="material-symbols-outlined text-2xl">menu</span>
                     </button>
                 </div>
@@ -176,12 +181,12 @@
     {% if messages %}
         <div class="max-w-4xl mx-auto px-4 mt-4 w-full">
             {% for message in messages %}
-                <div class="p-4 mb-3 rounded-2xl flex items-start gap-3 shadow-sm border text-sm font-medium transition-all {% if message.tags == 'error' %}bg-red-50 text-red-800 border-red-200{% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border-amber-200{% elif message.tags == 'info' %}bg-sky-50 text-sky-800 border-sky-200{% else %}bg-emerald-50 text-emerald-800 border-emerald-200{% endif %}">
+                <div role="alert" aria-live="polite" class="p-4 mb-3 rounded-2xl flex items-start gap-3 shadow-sm border text-sm font-medium transition-all {% if message.tags == 'error' %}bg-red-50 text-red-800 border-red-200{% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border-amber-200{% elif message.tags == 'info' %}bg-sky-50 text-sky-800 border-sky-200{% else %}bg-emerald-50 text-emerald-800 border-emerald-200{% endif %}">
                     <span class="material-symbols-outlined text-xl shrink-0">
                         {% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}check_circle{% endif %}
                     </span>
                     <div class="flex-1">{{ message }}</div>
-                    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600">
+                    <button type="button" onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600" aria-label="Cerrar mensaje">
                         <span class="material-symbols-outlined text-base">close</span>
                     </button>
                 </div>
@@ -288,14 +293,14 @@
 
     {% if not licencia.suscripcion or licencia.suscripcion.plan.permite_chatbot %}
     <div id="chatbotWidget" class="fixed bottom-5 right-5 z-[60]">
-        <section id="chatbotPanel" class="hidden w-[min(360px,calc(100vw-2rem))] mb-3 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+        <section id="chatbotPanel" aria-labelledby="chatbotTitle" class="hidden w-[min(360px,calc(100vw-2rem))] mb-3 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
             <header class="bg-[#00685f] text-white px-4 py-3 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
                         <span class="material-symbols-outlined text-xl">smart_toy</span>
                     </span>
                     <div>
-                        <p class="font-headline font-bold text-sm">Asistente {{ business.app_name }}</p>
+                        <p id="chatbotTitle" class="font-headline font-bold text-sm">Asistente {{ business.app_name }}</p>
                         <p class="text-xs text-teal-100">Servicios, citas y seguimiento</p>
                     </div>
                 </div>
@@ -326,16 +331,23 @@
             </div>
         </section>
 
-        <button id="chatbotToggle" type="button" class="ml-auto w-14 h-14 rounded-2xl bg-[#00685f] text-white shadow-xl shadow-teal-900/20 flex items-center justify-center hover:bg-teal-800 transition" aria-label="Abrir chat">
+        <button id="chatbotToggle" type="button" aria-expanded="false" aria-controls="chatbotPanel" class="ml-auto w-14 h-14 rounded-2xl bg-[#00685f] text-white shadow-xl shadow-teal-900/20 flex items-center justify-center hover:bg-teal-800 transition" aria-label="Abrir chat">
             <span class="material-symbols-outlined text-2xl">chat</span>
         </button>
     </div>
     {% endif %}
 
     <script>
-        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
-            document.getElementById('mobileMenu').classList.toggle('hidden');
-        });
+        (function () {
+            const menuButton = document.getElementById('mobileMenuBtn');
+            const menu = document.getElementById('mobileMenu');
+            if (!menuButton || !menu) return;
+            menuButton.addEventListener('click', function () {
+                const isOpen = !menu.classList.toggle('hidden');
+                menuButton.setAttribute('aria-expanded', String(isOpen));
+                menuButton.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
+            });
+        })();
 
         (function () {
             const panel = document.getElementById('chatbotPanel');
@@ -386,13 +398,15 @@
             }
 
             toggle.addEventListener('click', function () {
-                panel.classList.toggle('hidden');
-                if (!panel.classList.contains('hidden')) {
+                const isOpen = !panel.classList.toggle('hidden');
+                toggle.setAttribute('aria-expanded', String(isOpen));
+                if (isOpen) {
                     input.focus();
                 }
             });
             close.addEventListener('click', function () {
                 panel.classList.add('hidden');
+                toggle.setAttribute('aria-expanded', 'false');
             });
             form.addEventListener('submit', function (event) {
                 event.preventDefault();

@@ -12,7 +12,6 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
 from django.contrib import messages
@@ -24,7 +23,7 @@ from django.views.decorators.http import require_POST
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio, CodigoRecuperacionContrasena
-from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm, SolicitarCodigoRecuperacionForm, VerificarCodigoRecuperacionForm, NuevaContrasenaRecuperacionForm, ContactoForm
+from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm, SolicitarCodigoRecuperacionForm, VerificarCodigoRecuperacionForm, NuevaContrasenaRecuperacionForm, ContactoForm, EmailOrUsernameAuthenticationForm
 from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_cliente, obtener_negocio_publico, obtener_rol_usuario, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
@@ -1686,7 +1685,7 @@ def login_usuario_view(request):
         if rate_limit_exceeded(request, 'login', limit=10, window_seconds=600):
             messages.error(request, 'Demasiados intentos de inicio de sesión. Espera unos minutos e inténtalo nuevamente.')
             return redirect('login')
-        form = AuthenticationForm(request, data=request.POST)
+        form = EmailOrUsernameAuthenticationForm(request, data=request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
@@ -1709,7 +1708,7 @@ def login_usuario_view(request):
         else:
             messages.error(request, "Usuario o contraseña incorrectos.")
     else:
-        form = AuthenticationForm()
+        form = EmailOrUsernameAuthenticationForm()
 
     return render(request, 'login.html', {'form': form})
 

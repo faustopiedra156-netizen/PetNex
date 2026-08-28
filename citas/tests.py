@@ -25,6 +25,33 @@ from .models import (
 from .services import enviar_notificacion
 
 
+class LoginIdentifierTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='cliente_login',
+            email='cliente-login@example.com',
+            password='clave-segura-login',
+        )
+
+    def test_permite_iniciar_sesion_con_usuario(self):
+        response = self.client.post(
+            reverse('login'),
+            {'username': 'cliente_login', 'password': 'clave-segura-login'},
+        )
+
+        self.assertRedirects(response, reverse('home'))
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_permite_iniciar_sesion_con_correo(self):
+        response = self.client.post(
+            reverse('login'),
+            {'username': 'CLIENTE-LOGIN@EXAMPLE.COM', 'password': 'clave-segura-login'},
+        )
+
+        self.assertRedirects(response, reverse('home'))
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 class RecuperacionConCodigoTests(TestCase):
     def setUp(self):

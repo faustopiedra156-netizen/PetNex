@@ -1,5 +1,6 @@
 from django import forms
 from django.conf import settings
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -30,7 +31,7 @@ class EmailOrUsernameAuthenticationForm(AuthenticationForm):
     }
 
     def clean(self):
-        identifier = self.cleaned_data.get('username', '').strip()
+        identifier = (self.cleaned_data.get('username') or '').strip()
         if identifier:
             matching_users = list(
                 User.objects.filter(

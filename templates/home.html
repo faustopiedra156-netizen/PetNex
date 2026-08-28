@@ -4,9 +4,6 @@
 
 {% block content %}
 <section class="relative overflow-hidden bg-gradient-to-br from-teal-900 via-[#00685f] to-teal-800 text-white py-20 lg:py-28">
-    <div class="absolute top-0 right-0 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
-    <div class="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl -ml-20 -mb-20"></div>
-
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div class="space-y-6 text-center lg:text-left">
@@ -80,6 +77,24 @@
         </div>
     </div>
 </section>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "{{ business.name|escapejs }}",
+  "description": "{{ business.tagline|escapejs }}",
+  "url": "{{ request.scheme }}://{{ request.get_host }}",
+  "telephone": "{{ business.phone|escapejs }}",
+  "email": "{{ business.email|escapejs }}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{ business.address|escapejs }}",
+    "addressLocality": "{{ business.city|escapejs }}",
+    "addressCountry": "{{ business.country_code|escapejs }}"
+  }
+}
+</script>
 
 <section class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center max-w-2xl mx-auto mb-12">
