@@ -223,6 +223,38 @@ STORAGES = {
     },
 }
 
+# Media opcional en almacenamiento S3 compatible (por ejemplo, Supabase Storage).
+# En desarrollo, sin estas variables, se conserva el almacenamiento local.
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', '').strip()
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '').strip()
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip()
+AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', '').strip()
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', '').strip() or None
+MEDIA_STORAGE_CONFIGURED = bool(
+    AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+)
+
+if MEDIA_STORAGE_CONFIGURED:
+    if not AWS_S3_ENDPOINT_URL:
+        raise ImproperlyConfigured('Configura AWS_S3_ENDPOINT_URL para el almacenamiento de medios.')
+    if find_spec('storages') is None:
+        raise ImproperlyConfigured('Instala django-storages[boto3] para usar almacenamiento externo.')
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'bucket_name': AWS_STORAGE_BUCKET_NAME,
+            'access_key': AWS_ACCESS_KEY_ID,
+            'secret_key': AWS_SECRET_ACCESS_KEY,
+            'endpoint_url': AWS_S3_ENDPOINT_URL,
+            'region_name': AWS_S3_REGION_NAME,
+            'addressing_style': 'path',
+            'default_acl': None,
+            'querystring_auth': False,
+            'file_overwrite': False,
+            'object_parameters': {'CacheControl': 'max-age=86400'},
+        },
+    }
+
 REDIS_URL = os.getenv('REDIS_URL', '').strip()
 CACHE_DEFAULT_TIMEOUT = env_int('CACHE_DEFAULT_TIMEOUT', 300)
 if REDIS_URL:

@@ -101,3 +101,44 @@ Antes de vender, prueba pagos con montos pequenos y confirma que el dinero llegu
 - Pago de suscripcion.
 - Crear y eliminar cuentas desde dueño PetNexo.
 - Politica de privacidad, terminos y soporte visibles en el footer.
+
+## 7. Fotos y almacenamiento persistente
+
+Render no debe usarse como almacenamiento permanente para las fotos subidas por los usuarios. El proyecto admite un bucket S3 compatible, incluido Supabase Storage mediante su endpoint S3.
+
+Configura estas variables solo despues de crear el bucket y sus credenciales:
+
+```env
+AWS_STORAGE_BUCKET_NAME=nombre-del-bucket
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_S3_ENDPOINT_URL=https://<project-ref>.storage.supabase.co/storage/v1/s3
+AWS_S3_REGION_NAME=us-east-1
+```
+
+El bucket debe permitir lectura de los objetos que se muestran en la ficha de mascota. No subas las credenciales al repositorio.
+
+## 8. Errores y monitoreo
+
+Configura un proyecto de Sentry y agrega su DSN en Render:
+
+```env
+SENTRY_DSN=https://...@sentry.io/...
+SENTRY_TRACES_SAMPLE_RATE=0.05
+```
+
+El proyecto no envía datos personales completos a Sentry (`send_default_pii=False`).
+
+## 9. Copias de seguridad
+
+Activa las copias automáticas y la retención disponibles en el panel de PostgreSQL de Render. Antes de una migración importante, crea un respaldo manual y conserva al menos una copia fuera de Render. Prueba una restauración en una base separada antes de depender del respaldo.
+
+## 10. Revisión antes de abrir al público
+
+- `DEBUG=False`, `RENDER=True` y `USE_SQLITE_LOCAL=False` en Render.
+- `SECRET_KEY` generada por Render y nunca incluida en Git.
+- `CSRF_TRUSTED_ORIGINS` con el dominio definitivo.
+- `EMAIL_BACKEND` configurado con Brevo, Resend o SMTP real.
+- `SIMULATE_PAYMENTS=True` solo para demostraciones; usar `False` cuando Datafast esté validado.
+- Dominio personalizado, HTTPS activo y correo corporativo verificados.
+- Ejecutar `python manage.py check --deploy` y `python manage.py test` despues de cada cambio.

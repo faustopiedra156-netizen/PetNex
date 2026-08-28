@@ -1,6 +1,6 @@
 # Sistema Django para peluqueria y estetica de mascotas
 
-Proyecto web parametrizable para locales de peluqueria, spa y estetica de mascotas, desarrollado solo con Django, plantillas HTML y estilos por CDN. No usa React, Vite ni Node.
+Proyecto web parametrizable para locales de peluqueria, spa y estetica de mascotas, desarrollado solo con Django y plantillas HTML. No usa React, Vite ni Node.
 
 ## Funciones incluidas
 
@@ -95,6 +95,24 @@ $env:TRANSFER_ACCOUNT_NUMBER="0000000000"
 $env:TRANSFER_ACCOUNT_OWNER="Nombre del negocio"
 $env:TRANSFER_ACCOUNT_ID="0000000000000"
 ```
+
+## Fotos en produccion
+
+El almacenamiento local funciona para desarrollo, pero los archivos subidos a Render deben guardarse en un bucket S3 compatible para sobrevivir a nuevos despliegues. El proyecto acepta Supabase Storage usando su endpoint S3:
+
+```env
+AWS_STORAGE_BUCKET_NAME=nombre-del-bucket
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_S3_ENDPOINT_URL=https://<project-ref>.storage.supabase.co/storage/v1/s3
+AWS_S3_REGION_NAME=us-east-1
+```
+
+Si estas variables permanecen vacias, se usa `media/` localmente. Nunca guardes las credenciales en Git.
+
+## Monitoreo y respaldos
+
+Para registrar errores en produccion configura `SENTRY_DSN` y `SENTRY_TRACES_SAMPLE_RATE` en Render. Activa los respaldos automáticos de la base PostgreSQL desde el panel del proveedor y realiza una restauracion de prueba antes del lanzamiento.
 
 ## Parametrizar el negocio
 
