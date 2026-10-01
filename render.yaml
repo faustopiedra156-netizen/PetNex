@@ -41,6 +41,18 @@ services:
         value: "False"
       - key: SECRET_KEY
         generateValue: true
+      - key: EMAIL_BACKEND
+        value: citas.email_backend.BrevoEmailBackend
+      - key: BREVO_SENDER_NAME
+        value: PetNexo
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: ADMIN_NOTIFICATION_EMAIL
+        sync: false
 
   - type: keyvalue
     name: petnexo-cache
