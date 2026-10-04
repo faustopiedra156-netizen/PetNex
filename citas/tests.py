@@ -22,7 +22,22 @@ from .models import (
     SuscripcionNegocio,
     UsuarioNegocio,
 )
-from .services import enviar_notificacion
+from .services import cache_get, enviar_notificacion
+
+
+class OperacionProduccionTests(TestCase):
+    def test_health_check_confirma_base_cache_y_entorno(self):
+        response = self.client.get(reverse('health_check'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['app'], 'ok')
+        self.assertEqual(response.json()['database'], 'ok')
+        self.assertIn(response.json()['cache'], {'ok', 'degraded'})
+
+    @patch('citas.services.cache.get', side_effect=ConnectionError('Redis no disponible'))
+    def test_error_de_cache_no_interrumpe_la_aplicacion(self, cache_mock):
+        self.assertIsNone(cache_get('prueba:cache'))
+        cache_mock.assert_called_once_with('prueba:cache', None)
 
 
 class LoginIdentifierTests(TestCase):

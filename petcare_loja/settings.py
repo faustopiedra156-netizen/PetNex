@@ -267,6 +267,9 @@ if REDIS_URL:
                 'SOCKET_CONNECT_TIMEOUT': 2,
                 'SOCKET_TIMEOUT': 2,
                 'CONNECTION_POOL_KWARGS': {'max_connections': env_int('REDIS_MAX_CONNECTIONS', 50)},
+                # Redis is an optimization, not a dependency for serving pages.
+                # A temporary cache outage must not turn the whole site into a 500.
+                'IGNORE_EXCEPTIONS': True,
             },
             'TIMEOUT': CACHE_DEFAULT_TIMEOUT,
             'KEY_PREFIX': 'petnexo',

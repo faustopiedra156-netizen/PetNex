@@ -11,13 +11,39 @@ from .models import ConfiguracionNegocio, Negocio, PerfilCliente, SuscripcionNeg
 logger = logging.getLogger(__name__)
 
 
+def cache_get(key, default=None):
+    """Read cache data without making the request depend on Redis availability."""
+    try:
+        return cache.get(key, default)
+    except Exception:
+        logger.warning('No se pudo leer la cache; se continuara sin cache.', exc_info=True)
+        return default
+
+
+def cache_set(key, value, timeout=None):
+    """Write cache data opportunistically; the database remains the source of truth."""
+    try:
+        return cache.set(key, value, timeout=timeout)
+    except Exception:
+        logger.warning('No se pudo escribir la cache; se continuara sin cache.', exc_info=True)
+        return False
+
+
+def cache_delete_many(keys):
+    try:
+        return cache.delete_many(keys)
+    except Exception:
+        logger.warning('No se pudo invalidar la cache.', exc_info=True)
+        return 0
+
+
 def _negocio_cache_id(negocio):
     return getattr(negocio, 'pk', None) or 'publico'
 
 
 def invalidar_cache_negocio(negocio_id=None):
     negocio_id = negocio_id or 'publico'
-    cache.delete_many([
+    cache_delete_many([
         f'negocio:config:{negocio_id}',
         f'negocio:home-metrics:{negocio_id}',
     ])
@@ -92,7 +118,7 @@ def obtener_negocio_publico():
 
 def obtener_configuracion_negocio(negocio=None):
     cache_key = f'negocio:config:{_negocio_cache_id(negocio)}'
-    cached = cache.get(cache_key)
+    cached = cache_get(cache_key)
     if cached is not None:
         return cached
     config = ConfiguracionNegocio.actual(negocio=negocio)
@@ -100,7 +126,7 @@ def obtener_configuracion_negocio(negocio=None):
         business = config.as_business_dict()
     else:
         business = settings.BUSINESS_CONFIG.copy()
-    cache.set(cache_key, business, timeout=settings.CACHE_DEFAULT_TIMEOUT)
+    cache_set(cache_key, business, timeout=settings.CACHE_DEFAULT_TIMEOUT)
     return business
 
 

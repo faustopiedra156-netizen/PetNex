@@ -45,6 +45,8 @@ services:
         value: citas.email_backend.BrevoEmailBackend
       - key: BREVO_SENDER_NAME
         value: PetNexo
+      - key: BREVO_TIMEOUT_SECONDS
+        value: "10"
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL
@@ -53,6 +55,20 @@ services:
         sync: false
       - key: ADMIN_NOTIFICATION_EMAIL
         sync: false
+      - key: SIMULATE_PAYMENTS
+        value: "False"
+      - key: GOOGLE_LOGIN_ENABLED
+        value: "False"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.05"
+      - key: LOG_LEVEL
+        value: INFO
 
   - type: keyvalue
     name: petnexo-cache

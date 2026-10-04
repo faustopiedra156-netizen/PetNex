@@ -25,7 +25,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from .models import Servicio, Mascota, PerfilCliente, Cita, Calificacion, ConfiguracionNegocio, Sucursal, PlanSuscripcion, SuscripcionNegocio, PagoSuscripcion, Negocio, CodigoRecuperacionContrasena
 from .forms import MascotaForm, PerfilClienteForm, CitaForm, CalificacionForm, RegistroForm, ConfiguracionNegocioForm, ServicioForm, AdminUsuarioForm, SucursalForm, SolicitarCodigoRecuperacionForm, VerificarCodigoRecuperacionForm, NuevaContrasenaRecuperacionForm, ContactoForm, EmailOrUsernameAuthenticationForm
-from .services import obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_cliente, obtener_negocio_publico, obtener_rol_usuario, enviar_notificacion, estado_licencia
+from .services import cache_get, cache_set, obtener_configuracion_negocio, obtener_negocio_usuario, obtener_negocio_cliente, obtener_negocio_publico, obtener_rol_usuario, enviar_notificacion, estado_licencia
 
 ESTADOS_EDITABLES_CLIENTE = {'PENDIENTE', 'CONFIRMADA'}
 PROGRESO_POR_ETAPA = {
@@ -60,12 +60,13 @@ def client_ip(request):
 def rate_limit_exceeded(request, scope, limit, window_seconds):
     """Small cache-based throttle; Redis makes it shared by every Gunicorn worker."""
     cache_key = f'rate-limit:{scope}:{client_ip(request)}'
-    if cache.add(cache_key, 1, timeout=window_seconds):
-        return False
     try:
+        if cache.add(cache_key, 1, timeout=window_seconds):
+            return False
         attempts = cache.incr(cache_key)
-    except ValueError:
-        cache.set(cache_key, 1, timeout=window_seconds)
+    except Exception:
+        # Rate limiting must fail open when the optional cache is unavailable.
+        cache_set(cache_key, 1, timeout=window_seconds)
         return False
     return attempts > limit
 
@@ -207,6 +208,8 @@ def health_check_view(request):
     checks = {
         'app': 'ok',
         'database': 'unknown',
+        'cache': 'unknown',
+        'environment': 'development' if settings.DEBUG else 'production',
         'migrations_hint': 'Ejecuta py manage.py migrate si la base de datos falla.',
     }
     status = 200
@@ -214,6 +217,9 @@ def health_check_view(request):
         with connection.cursor() as cursor:
             cursor.execute('SELECT 1')
             cursor.fetchone()
+        # These fields are part of the current schema. This detects a deploy
+        # where the application was updated but its migrations were skipped.
+        ConfiguracionNegocio.objects.values('id', 'latitud', 'longitud').first()
         checks['database'] = 'ok'
     except DatabaseError as exc:
         checks['database'] = 'error'
@@ -221,6 +227,17 @@ def health_check_view(request):
         if settings.DEBUG:
             checks['error'] = str(exc)
         status = 503
+
+    try:
+        cache_key = 'health:cache-probe'
+        cache.set(cache_key, 'ok', timeout=15)
+        checks['cache'] = 'ok' if cache.get(cache_key) == 'ok' else 'degraded'
+    except Exception:
+        # Cache is optional. A Redis outage should be visible in health data
+        # but must not make the service unavailable to customers.
+        checks['cache'] = 'degraded'
+        logger.warning('Health check de cache degradado.', exc_info=True)
+
     return JsonResponse(checks, status=status)
 
 
@@ -237,7 +254,15 @@ def soporte_view(request):
 
 
 def home_view(request):
-    negocio = negocio_para_request(request)
+    try:
+        negocio = negocio_para_request(request)
+    except DatabaseError:
+        # The public landing page can still render with env-based defaults
+        # while Render is recovering from a database connection or migration
+        # problem. Authenticated workflows will continue to expose the issue
+        # through the health check instead of failing silently.
+        logger.exception('No se pudo resolver el negocio publico para la portada.')
+        negocio = None
     cache_key = f'negocio:home-metrics:{getattr(negocio, "pk", None) or "publico"}'
     try:
         servicios_destacados = Servicio.objects.filter(negocio=negocio, activo=True, destacado=True).only(
@@ -246,7 +271,7 @@ def home_view(request):
         servicios_todos = Servicio.objects.filter(negocio=negocio, activo=True).only(
             'nombre', 'descripcion', 'precio', 'duracion_minutos', 'icono'
         )[:settings.HOME_SERVICES_LIMIT]
-        metricas = cache.get(cache_key)
+        metricas = cache_get(cache_key)
         if metricas is None:
             resumen_citas = Cita.objects.filter(negocio=negocio).aggregate(
                 mascotas_atendidas=Count(
@@ -268,12 +293,13 @@ def home_view(request):
                 'promedio_resenas': round(resumen_resenas['promedio'] or 0, 1),
                 'total_resenas': resumen_resenas['total'],
             }
-            cache.set(cache_key, metricas, timeout=120)
+            cache_set(cache_key, metricas, timeout=120)
         mascotas_atendidas = metricas['mascotas_atendidas']
         tasa_atencion = metricas['tasa_atencion']
         promedio_resenas = metricas['promedio_resenas']
         total_resenas = metricas['total_resenas']
-    except (OperationalError, ProgrammingError):
+    except DatabaseError:
+        logger.exception('No se pudieron cargar los datos de la portada.')
         servicios_destacados = []
         servicios_todos = []
         mascotas_atendidas = 0
